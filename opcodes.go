@@ -4,6 +4,7 @@ import "log"
 
 func (cpu *CPU) ParseNextOpcode() {
 	next := cpu.ROM[cpu.PC]
+	log.Printf("Opcode: 0x%02X", next)
 	switch next {
 	case 0x40: // LD B,B
 		cpu.LoadRegister(RegB, RegB)
@@ -202,7 +203,9 @@ func (cpu *CPU) ParseNextOpcode() {
 }
 
 func (cpu *CPU) GetHL() uint16 {
-	return uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+	hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+	log.Printf("HL Address: 0x%04X", hl)
+	return hl
 }
 
 func (cpu *CPU) LoadMemory(address uint16, reg uint8) {
