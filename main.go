@@ -11,6 +11,7 @@ type CPU struct {
 
 	Memory []uint8
 	ROM    []uint8
+	Halted bool
 }
 
 // 8-bit register constants
@@ -48,6 +49,7 @@ func InitCPU() *CPU {
 		Memory:    make([]uint8, 65535),
 		ROM:       make([]uint8, 32768),
 		Registers: make([]uint8, 8),
+		Halted:    false,
 	}
 	return &result
 }

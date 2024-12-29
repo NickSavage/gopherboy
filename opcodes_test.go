@@ -26,6 +26,66 @@ func TestLoadMemoryOperations(t *testing.T) {
 	}
 }
 
+func TestLoadMemoryOpcodes(t *testing.T) {
+	cpu := InitCPU()
+	address := uint16(0x8000)
+	cpu.Registers[RegH] = uint8(address >> 8)
+	cpu.Registers[RegL] = uint8(address & 0xFF)
+
+	// Define test cases for all load memory operations in the 0x7* range
+	testCases := []struct {
+		name     string
+		srcReg   uint8
+		opcode   uint8
+		expected uint8
+	}{
+		{"LD (HL),B", RegB, 0x70, 0x42},
+		{"LD (HL),C", RegC, 0x71, 0x33},
+		{"LD (HL),D", RegD, 0x72, 0x22},
+		{"LD (HL),E", RegE, 0x73, 0x11},
+		{"LD (HL),H", RegH, 0x74, 0x00},
+		{"LD (HL),L", RegL, 0x75, 0x01},
+		{"LD (HL),A", RegA, 0x77, 0xFF},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cpu = InitCPU() // Reset CPU
+
+			// Setup HL to point to test memory location
+			cpu.Registers[RegH] = uint8(address >> 8)
+			cpu.Registers[RegL] = uint8(address & 0xFF)
+
+			// Test both direct memory load and opcode execution
+
+			// Test 1: Direct memory load
+			cpu.Registers[tc.srcReg] = tc.expected
+			cpu.LoadMemory(address, tc.srcReg)
+			if cpu.Memory[address] != tc.expected {
+				t.Errorf("%s direct load failed, expected 0x%02X, got 0x%02X",
+					tc.name, tc.expected, cpu.Memory[address])
+			}
+
+			// Test 2: Opcode execution
+			cpu = InitCPU() // Reset CPU
+			cpu.Registers[tc.srcReg] = tc.expected
+			cpu.Registers[RegH] = uint8(address >> 8)
+			cpu.Registers[RegL] = uint8(address & 0xFF)
+			cpu.ROM[0] = tc.opcode
+			cpu.ParseNextOpcode()
+
+			if cpu.Memory[address] != tc.expected {
+				t.Errorf("%s opcode 0x%02X failed, expected 0x%02X, got 0x%02X",
+					tc.name, tc.opcode, tc.expected, cpu.Memory[address])
+			}
+
+			if cpu.PC != 1 {
+				t.Errorf("%s PC increment failed, expected 1, got %d", tc.name, cpu.PC)
+			}
+		})
+	}
+}
+
 func TestExecuteProgram(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -210,7 +270,10 @@ func TestLoadFromMemory(t *testing.T) {
 		{"LD B,(HL)", RegB, 0x46, 0x42},
 		{"LD C,(HL)", RegC, 0x4E, 0x43},
 		{"LD D,(HL)", RegD, 0x56, 0x44},
-		// Add other (HL) load operations...
+		{"LD E,(HL)", RegE, 0x5E, 0x45},
+		{"LD H,(HL)", RegH, 0x66, 0x46},
+		{"LD L,(HL)", RegL, 0x6E, 0x47},
+		{"LD A,(HL)", RegA, 0x7E, 0x48},
 	}
 
 	for _, tc := range testCases {

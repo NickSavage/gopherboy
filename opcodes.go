@@ -149,6 +149,54 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x6F: // LD L,A
 		cpu.LoadRegister(RegL, RegA)
 		cpu.PC++
+	case 0x70: // LD (HL), B
+		cpu.LoadMemory(cpu.GetHL(), RegB)
+		cpu.PC++
+	case 0x71: // LD (HL), C
+		cpu.LoadMemory(cpu.GetHL(), RegC)
+		cpu.PC++
+	case 0x72: // LD (HL), D
+		cpu.LoadMemory(cpu.GetHL(), RegD)
+		cpu.PC++
+	case 0x73: // LD (HL), E
+		cpu.LoadMemory(cpu.GetHL(), RegE)
+		cpu.PC++
+	case 0x74: // LD (HL), H
+		cpu.LoadMemory(cpu.GetHL(), RegH)
+		cpu.PC++
+	case 0x75: // LD (HL), L
+		cpu.LoadMemory(cpu.GetHL(), RegL)
+		cpu.PC++
+	case 0x76: // HALT
+		cpu.Halt()
+		cpu.PC++
+	case 0x77: // LD (HL), A
+		cpu.LoadMemory(cpu.GetHL(), RegA)
+		cpu.PC++
+	case 0x78: // LD A, B
+		cpu.LoadRegister(RegA, RegB)
+		cpu.PC++
+	case 0x79: // LD A, C
+		cpu.LoadRegister(RegA, RegC)
+		cpu.PC++
+	case 0x7A: // LD A, D
+		cpu.LoadRegister(RegA, RegD)
+		cpu.PC++
+	case 0x7B: // LD A, E
+		cpu.LoadRegister(RegA, RegE)
+		cpu.PC++
+	case 0x7C: // LD A, H
+		cpu.LoadRegister(RegA, RegH)
+		cpu.PC++
+	case 0x7D: // LD A, L
+		cpu.LoadRegister(RegA, RegL)
+		cpu.PC++
+	case 0x7E: // LD A, (HL)
+		cpu.LoadFromMemory(RegA, cpu.GetHL())
+		cpu.PC++
+	case 0x7F: // LD A, A
+		cpu.LoadRegister(RegA, RegA)
+		cpu.PC++
 	}
 
 }
@@ -168,4 +216,8 @@ func (cpu *CPU) LoadFromMemory(reg uint8, address uint16) {
 
 func (cpu *CPU) LoadRegister(dest uint8, source uint8) {
 	cpu.Registers[dest] = cpu.Registers[source]
+}
+
+func (cpu *CPU) Halt() {
+	cpu.Halted = true
 }
