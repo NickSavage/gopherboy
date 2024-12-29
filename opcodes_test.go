@@ -4,26 +4,32 @@ import (
 	"testing"
 )
 
-func TestLoadMemoryOperations(t *testing.T) {
-	cpu := InitCPU()
-	address := uint16(0x8000)
-
-	// Test LD (HL),B
-	cpu.Registers[RegB] = 0x42
-	cpu.LoadMemory(address, RegB)
-
-	if cpu.Memory[address] != 0x42 {
-		t.Errorf("LoadMemory failed: expected memory[0x8000]=0x42, got 0x%02X", cpu.Memory[address])
-	}
-
-	// Test LD C,(HL)
-	cpu.LoadFromMemory(RegC, address)
-
-	if cpu.Registers[RegC] != 0x42 {
-		t.Errorf("LoadFromMemory failed: expected C=0x42, got 0x%02X", cpu.Registers[RegC])
-	}
+type TestProgram struct {
+	name     string
+	program  []uint8
+	setup    func(*CPU)
+	validate func(*testing.T, *CPU)
 }
 
+func RunTestProgram(t *testing.T, tc TestProgram) {
+	cpu := InitCPU()
+
+	// Load the program into ROM
+	copy(cpu.ROM, tc.program)
+
+	// Run setup if provided
+	if tc.setup != nil {
+		tc.setup(cpu)
+	}
+
+	// Execute the program
+	for i := 0; i < len(tc.program); i++ {
+		cpu.ParseNextOpcode()
+	}
+
+	// Validate the final state
+	tc.validate(t, cpu)
+}
 func TestLoadMemoryOpcodes(t *testing.T) {
 	cpu := InitCPU()
 	address := uint16(0x8000)
@@ -85,12 +91,7 @@ func TestLoadMemoryOpcodes(t *testing.T) {
 }
 
 func TestExecuteProgram(t *testing.T) {
-	testCases := []struct {
-		name     string
-		program  []uint8
-		setup    func(*CPU)
-		validate func(*testing.T, *CPU)
-	}{
+	testCases := []TestProgram{
 		{
 			name: "Load series",
 			program: []uint8{
@@ -282,6 +283,9 @@ func TestExecuteProgram(t *testing.T) {
 				if cpu.Registers[RegL] != 0x07 {
 					t.Errorf("Expected Register L to be 0x07, got %02X", cpu.Registers[RegL])
 				}
+				if cpu.SP != 0xFFFF {
+					t.Errorf("Expected SP to be 0xFFFF, got %04X", cpu.SP)
+				}
 
 			},
 		},
@@ -289,23 +293,8 @@ func TestExecuteProgram(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cpu := InitCPU()
+			RunTestProgram(t, tc)
 
-			// Load the program into ROM
-			copy(cpu.ROM, tc.program)
-
-			// Run setup if provided
-			if tc.setup != nil {
-				tc.setup(cpu)
-			}
-
-			// Execute the program
-			for i := 0; i < len(tc.program); i++ {
-				cpu.ParseNextOpcode()
-			}
-
-			// Validate the final state
-			tc.validate(t, cpu)
 		})
 	}
 }
@@ -445,6 +434,94 @@ func TestLoadFromMemory(t *testing.T) {
 			if cpu.PC != 1 {
 				t.Errorf("%s PC increment failed, expected 1, got %d", tc.name, cpu.PC)
 			}
+		})
+	}
+}
+func TestDecrementRegisters(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "Decrement 16-bit registers",
+			program: []uint8{
+				0x06, 0x80, // LD B,u8
+				0x16, 0x80, // LD B,u8
+				0x26, 0x80, // LD B,u8
+				0x0B, // DEC BC
+				0x1B, // DEC DE
+				0x2B, // DEC HL
+				0x3B, // DEC SP
+			},
+			setup: func(cpu *CPU) {
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 10 {
+					t.Errorf("Expected PC to be 10, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegC] != 0xFF {
+					t.Errorf("Expected final C value to be 0xFF, got 0x%02X", cpu.Registers[RegC])
+				}
+				if cpu.Registers[RegE] != 0xFF {
+					t.Errorf("Expected final E value to be 0xFF, got 0x%02X", cpu.Registers[RegE])
+				}
+				if cpu.Registers[RegL] != 0xFF {
+					t.Errorf("Expected final L value to be 0xFF, got 0x%02X", cpu.Registers[RegL])
+				}
+				if cpu.SP != 0xFFFD {
+					t.Errorf("Expected final SP value to be 0xFFFD, got 0x%02X", cpu.SP)
+				}
+			},
+		},
+		{
+			name: "Decrement 8-bit registers",
+			program: []uint8{
+				0x3E, 0x42, // LD A,u8
+				0x06, 0x42, // LD B,u8
+				0x0E, 0x42, // LD C,u8
+				0x16, 0x42, // LD D,u8
+				0x1E, 0x42, // LD E,u8
+				0x26, 0x42, // LD H,u8
+				0x2E, 0x42, // LD L,u8
+				0x05, // DEC B
+				0x0D, // DEC C
+				0x15, // DEC D
+				0x1D, // DEC E
+				0x25, // DEC H
+				0x2D, // DEC L
+				0x3D, // DEC A
+			},
+			setup: func(cpu *CPU) {
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 21 {
+					t.Errorf("Expected PC to be 21, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x41 {
+					t.Errorf("Expected Register A to be 0x41, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Registers[RegB] != 0x41 {
+					t.Errorf("Expected Register B to be 0x41, got %02X", cpu.Registers[RegB])
+				}
+				if cpu.Registers[RegC] != 0x41 {
+					t.Errorf("Expected Register C to be 0x41, got %02X", cpu.Registers[RegC])
+				}
+				if cpu.Registers[RegD] != 0x41 {
+					t.Errorf("Expected Register D to be 0x41, got %02X", cpu.Registers[RegD])
+				}
+				if cpu.Registers[RegE] != 0x41 {
+					t.Errorf("Expected Register E to be 0x41, got %02X", cpu.Registers[RegE])
+				}
+				if cpu.Registers[RegH] != 0x41 {
+					t.Errorf("Expected Register H to be 0x41, got %02X", cpu.Registers[RegH])
+				}
+				if cpu.Registers[RegL] != 0x41 {
+					t.Errorf("Expected Register L to be 0x41, got %02X", cpu.Registers[RegL])
+				}
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+
 		})
 	}
 }

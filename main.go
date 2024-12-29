@@ -50,6 +50,7 @@ func InitCPU() *CPU {
 		ROM:       make([]uint8, 32768),
 		Registers: make([]uint8, 8),
 		Halted:    false,
+		SP:        0xFFFE,
 	}
 	return &result
 }

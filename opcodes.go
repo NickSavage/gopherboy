@@ -12,9 +12,18 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x03: // INC BC
 		cpu.IncrementU16Register(RegB, RegC)
 		cpu.PC += 1
+	case 0x05: // DEC B
+		cpu.Registers[RegB]--
+		cpu.PC += 1
 	case 0x06: // LD B, u8
 		cpu.LoadImmediate(RegB, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x0B: // DEC BC
+		cpu.DecrementU16Register(RegB, RegC)
+		cpu.PC += 1
+	case 0x0D: // DEC C
+		cpu.Registers[RegC]--
+		cpu.PC += 1
 	case 0x0E: // LD C, u8
 		cpu.LoadImmediate(RegC, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
@@ -24,9 +33,18 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x13: // INC DE
 		cpu.IncrementU16Register(RegD, RegE)
 		cpu.PC += 1
+	case 0x15: // DEC D
+		cpu.Registers[RegD]--
+		cpu.PC += 1
 	case 0x16: // LD D, u8
 		cpu.LoadImmediate(RegD, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x1B: // DEC DE
+		cpu.DecrementU16Register(RegD, RegE)
+		cpu.PC += 1
+	case 0x1D: // DEC E
+		cpu.Registers[RegE]--
+		cpu.PC += 1
 	case 0x1E: // LD E, u8
 		cpu.LoadImmediate(RegE, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
@@ -37,9 +55,18 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x23: // INC HL
 		cpu.IncrementU16Register(RegH, RegL)
 		cpu.PC += 1
+	case 0x25: // DEC H
+		cpu.Registers[RegH]--
+		cpu.PC += 1
 	case 0x26: // LD H, u8
 		cpu.LoadImmediate(RegH, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x2B: // DEC HL
+		cpu.DecrementU16Register(RegH, RegL)
+		cpu.PC += 1
+	case 0x2D: // DEC L
+		cpu.Registers[RegL]--
+		cpu.PC += 1
 	case 0x2E: // LD L, u8
 		cpu.LoadImmediate(RegL, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
@@ -47,9 +74,18 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.Registers[RegA])
 		cpu.DecrementU16Register(RegH, RegL)
 		cpu.PC += 1
+	case 0x33: // INC SP
+		cpu.SP += 1
+		cpu.PC += 1
 	case 0x36: // LD (HL),u8
 		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x3B: // DEC SP
+		cpu.SP -= 1
+		cpu.PC += 1
+	case 0x3D: // DEC A
+		cpu.Registers[RegA]--
+		cpu.PC += 1
 	case 0x3E: // LD A, u8
 		cpu.LoadImmediate(RegA, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
