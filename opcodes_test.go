@@ -437,6 +437,89 @@ func TestLoadFromMemory(t *testing.T) {
 		})
 	}
 }
+func TestIncrementRegisters(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "Increment 8-bit registers",
+			program: []uint8{
+				0x3E, 0x41, // LD A,u8
+				0x06, 0x41, // LD B,u8
+				0x0E, 0x41, // LD C,u8
+				0x16, 0x41, // LD D,u8
+				0x1E, 0x41, // LD E,u8
+				0x26, 0x41, // LD H,u8
+				0x2E, 0x41, // LD L,u8
+				0x04, // INC B
+				0x0C, // INC C
+				0x14, // INC D
+				0x1C, // INC E
+				0x24, // INC H
+				0x2C, // INC L
+				0x3C, // INC A
+			},
+			setup: func(cpu *CPU) {
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 21 {
+					t.Errorf("Expected PC to be 21, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x42 {
+					t.Errorf("Expected Register A to be 0x42, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Registers[RegB] != 0x42 {
+					t.Errorf("Expected Register B to be 0x42, got %02X", cpu.Registers[RegB])
+				}
+				if cpu.Registers[RegC] != 0x42 {
+					t.Errorf("Expected Register C to be 0x42, got %02X", cpu.Registers[RegC])
+				}
+				if cpu.Registers[RegD] != 0x42 {
+					t.Errorf("Expected Register D to be 0x42, got %02X", cpu.Registers[RegD])
+				}
+				if cpu.Registers[RegE] != 0x42 {
+					t.Errorf("Expected Register E to be 0x42, got %02X", cpu.Registers[RegE])
+				}
+				if cpu.Registers[RegH] != 0x42 {
+					t.Errorf("Expected Register H to be 0x42, got %02X", cpu.Registers[RegH])
+				}
+				if cpu.Registers[RegL] != 0x42 {
+					t.Errorf("Expected Register L to be 0x42, got %02X", cpu.Registers[RegL])
+				}
+			},
+		},
+		{
+			name: "Increment (HL)",
+			program: []uint8{
+				0x26, 0x80, // LD H,u8
+				0x2E, 0x00, // LD L,u8
+				0x36, 0x41, // LD (HL),u8
+				0x34, // INC (HL)
+			},
+			setup: func(cpu *CPU) {
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 7 {
+					t.Errorf("Expected PC to be 7, got %d", cpu.PC)
+				}
+				if cpu.Memory[0x8000] != 0x42 {
+					t.Errorf("Expected memory at (HL) to be 0x42, got %02X", cpu.Memory[0x8000])
+				}
+				// Verify HL wasn't modified
+				if cpu.Registers[RegH] != 0x80 {
+					t.Errorf("Expected Register H to be 0x80, got %02X", cpu.Registers[RegH])
+				}
+				if cpu.Registers[RegL] != 0x00 {
+					t.Errorf("Expected Register L to be 0x00, got %02X", cpu.Registers[RegL])
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
 func TestDecrementRegisters(t *testing.T) {
 	testCases := []TestProgram{
 		{
@@ -514,6 +597,32 @@ func TestDecrementRegisters(t *testing.T) {
 				}
 				if cpu.Registers[RegL] != 0x41 {
 					t.Errorf("Expected Register L to be 0x41, got %02X", cpu.Registers[RegL])
+				}
+			},
+		},
+		{
+			name: "Decrement (HL)",
+			program: []uint8{
+				0x26, 0x80, // LD H,u8
+				0x2E, 0x00, // LD L,u8
+				0x36, 0x42, // LD (HL),u8
+				0x35, // DEC (HL)
+			},
+			setup: func(cpu *CPU) {
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 7 {
+					t.Errorf("Expected PC to be 7, got %d", cpu.PC)
+				}
+				if cpu.Memory[0x8000] != 0x41 {
+					t.Errorf("Expected memory at (HL) to be 0x41, got %02X", cpu.Memory[0x8000])
+				}
+				// Verify HL wasn't modified
+				if cpu.Registers[RegH] != 0x80 {
+					t.Errorf("Expected Register H to be 0x80, got %02X", cpu.Registers[RegH])
+				}
+				if cpu.Registers[RegL] != 0x00 {
+					t.Errorf("Expected Register L to be 0x00, got %02X", cpu.Registers[RegL])
 				}
 			},
 		},
