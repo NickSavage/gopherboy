@@ -204,6 +204,49 @@ func TestExecuteProgram(t *testing.T) {
 
 			},
 		},
+		{
+			name: "Load u16 regs",
+			program: []uint8{
+				0x3E, 0x01, // LD A, u8
+				0x06, 0x04, // LD B, u8
+				0x0E, 0x04, // LD C, u8
+				0x02,
+				0x16, 0x05, // LD D, u8
+				0x1E, 0x05, // LD E, u8
+				0x12,       // LD (DE), A
+				0x26, 0x06, // LD H, u8
+				0x2E, 0x06, // LD L, u8
+				0x22, // LD (HL+), A
+				0x32, // LD (HL-), A
+				0x32, // LD (HL-), A
+
+			},
+			setup: func(cpu *CPU) {
+				// Set up HL to point to 0x8000
+				cpu.Registers[RegH] = 0x80
+				cpu.Registers[RegL] = 0x00
+				// Set value at (HL)
+				cpu.Memory[0x8000] = 0x42
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 19 {
+					t.Errorf("Expected PC to be 19, got %d", cpu.PC)
+				}
+				if cpu.Memory[0x0404] != 0x01 {
+					t.Errorf("Expected memory at 0x0404 to be 0x01, got %02X", cpu.Memory[0x0404])
+				}
+				if cpu.Memory[0x0505] != 0x01 {
+					t.Errorf("Expected memory at 0x0404 to be 0x01, got %02X", cpu.Memory[0x0404])
+				}
+				if cpu.Memory[0x0606] != 0x01 {
+					t.Errorf("Expected memory at 0x0404 to be 0x01, got %02X", cpu.Memory[0x0404])
+				}
+				if cpu.Registers[RegL] != 0x05 {
+					t.Errorf("Expected Register L to be 0x05, got %02X", cpu.Registers[RegL])
+				}
+
+			},
+		},
 	}
 
 	for _, tc := range testCases {

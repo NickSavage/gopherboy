@@ -6,25 +6,39 @@ func (cpu *CPU) ParseNextOpcode() {
 	next := cpu.ROM[cpu.PC]
 	log.Printf("Opcode: 0x%02X", next)
 	switch next {
-	case 0x06: // LC B, u8
+	case 0x02: // LD (BC), A
+		cpu.LoadMemoryImmediate(cpu.GetBC(), cpu.Registers[RegA])
+		cpu.PC += 1
+	case 0x06: // LD B, u8
 		cpu.LoadImmediate(RegB, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
-	case 0x0E: // LC C, u8
+	case 0x0E: // LD C, u8
 		cpu.LoadImmediate(RegC, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
-	case 0x16: // LC D, u8
+	case 0x12: // LD (DE), A
+		cpu.LoadMemoryImmediate(cpu.GetDE(), cpu.Registers[RegA])
+		cpu.PC += 1
+	case 0x16: // LD D, u8
 		cpu.LoadImmediate(RegD, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0x1E: // LD E, u8
 		cpu.LoadImmediate(RegE, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
-	case 0x26: // LC H, u8
+	case 0x22: //LD (HL+), A
+		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.Registers[RegA])
+		cpu.IncrementU16Register(RegH, RegL)
+		cpu.PC += 1
+	case 0x26: // LD H, u8
 		cpu.LoadImmediate(RegH, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0x2E: // LD L, u8
 		cpu.LoadImmediate(RegL, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
-	case 0x36: // LC (HL),u8
+	case 0x32: //LD (HL-), A
+		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.Registers[RegA])
+		cpu.DecrementU16Register(RegH, RegL)
+		cpu.PC += 1
+	case 0x36: // LD (HL),u8
 		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0x3E: // LD A, u8
@@ -228,8 +242,16 @@ func (cpu *CPU) ParseNextOpcode() {
 
 func (cpu *CPU) GetHL() uint16 {
 	hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
-	log.Printf("HL Address: 0x%04X", hl)
 	return hl
+}
+
+func (cpu *CPU) GetBC() uint16 {
+	bc := uint16(cpu.Registers[RegB])<<8 | uint16(cpu.Registers[RegC])
+	return bc
+}
+func (cpu *CPU) GetDE() uint16 {
+	de := uint16(cpu.Registers[RegD])<<8 | uint16(cpu.Registers[RegE])
+	return de
 }
 
 func (cpu *CPU) LoadMemoryImmediate(address uint16, value uint8) {
@@ -255,4 +277,18 @@ func (cpu *CPU) LoadImmediate(reg uint8, value uint8) {
 
 func (cpu *CPU) Halt() {
 	cpu.Halted = true
+}
+
+func (cpu *CPU) IncrementU16Register(high uint8, low uint8) {
+	value := uint16(cpu.Registers[high])<<8 | uint16(cpu.Registers[low])
+	value++
+	cpu.Registers[high] = uint8(value >> 8)
+	cpu.Registers[low] = uint8(value & 0xFF)
+}
+
+func (cpu *CPU) DecrementU16Register(high uint8, low uint8) {
+	value := uint16(cpu.Registers[high])<<8 | uint16(cpu.Registers[low])
+	value--
+	cpu.Registers[high] = uint8(value >> 8)
+	cpu.Registers[low] = uint8(value & 0xFF)
 }
