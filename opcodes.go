@@ -6,6 +6,30 @@ func (cpu *CPU) ParseNextOpcode() {
 	next := cpu.ROM[cpu.PC]
 	log.Printf("Opcode: 0x%02X", next)
 	switch next {
+	case 0x06: // LC B, u8
+		cpu.LoadImmediate(RegB, cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0x0E: // LC C, u8
+		cpu.LoadImmediate(RegC, cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0x16: // LC D, u8
+		cpu.LoadImmediate(RegD, cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0x1E: // LD E, u8
+		cpu.LoadImmediate(RegE, cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0x26: // LC H, u8
+		cpu.LoadImmediate(RegH, cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0x2E: // LD L, u8
+		cpu.LoadImmediate(RegL, cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0x36: // LC (HL),u8
+		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0x3E: // LD A, u8
+		cpu.LoadImmediate(RegA, cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
 	case 0x40: // LD B,B
 		cpu.LoadRegister(RegB, RegB)
 		cpu.PC++
@@ -208,9 +232,13 @@ func (cpu *CPU) GetHL() uint16 {
 	return hl
 }
 
+func (cpu *CPU) LoadMemoryImmediate(address uint16, value uint8) {
+	log.Printf("load mem immediate: 0x%02X -> 0x%04X", address, value)
+	cpu.Memory[address] = value
+}
+
 func (cpu *CPU) LoadMemory(address uint16, reg uint8) {
-	log.Printf("address %v reg %v", address, reg)
-	cpu.Memory[address] = cpu.Registers[reg]
+	cpu.LoadMemoryImmediate(address, cpu.Registers[reg])
 }
 
 func (cpu *CPU) LoadFromMemory(reg uint8, address uint16) {
@@ -219,6 +247,10 @@ func (cpu *CPU) LoadFromMemory(reg uint8, address uint16) {
 
 func (cpu *CPU) LoadRegister(dest uint8, source uint8) {
 	cpu.Registers[dest] = cpu.Registers[source]
+}
+
+func (cpu *CPU) LoadImmediate(reg uint8, value uint8) {
+	cpu.Registers[reg] = value
 }
 
 func (cpu *CPU) Halt() {

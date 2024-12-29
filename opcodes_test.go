@@ -136,6 +136,74 @@ func TestExecuteProgram(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "Load immediate 1",
+			program: []uint8{
+				0x0E, 0x01, // LD C, u8
+				0x1E, 0x02, // LD E, u8
+				0x2E, 0x03, // LD L, u8
+				0x3E, 0x04, // LD A, u8
+			},
+			setup: func(cpu *CPU) {
+				// Set up HL to point to 0x8000
+				cpu.Registers[RegH] = 0x80
+				cpu.Registers[RegL] = 0x00
+				// Set value at (HL)
+				cpu.Memory[0x8000] = 0x42
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 8 {
+					t.Errorf("Expected PC to be 8, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegC] != 0x01 {
+					t.Errorf("Expected final C value to be 0x01, got 0x%02X", cpu.Registers[RegB])
+				}
+				if cpu.Registers[RegE] != 0x02 {
+					t.Errorf("Expected final E value to be 0x01, got 0x%02X", cpu.Registers[RegB])
+				}
+				if cpu.Registers[RegL] != 0x03 {
+					t.Errorf("Expected final L value to be 0x01, got 0x%02X", cpu.Registers[RegB])
+				}
+				if cpu.Registers[RegA] != 0x04 {
+					t.Errorf("Expected final A value to be 0x01, got 0x%02X", cpu.Registers[RegB])
+				}
+
+			},
+		},
+		{
+			name: "Load immediate 1",
+			program: []uint8{
+				0x06, 0x01, // LD B, u8
+				0x16, 0x02, // LD D, u8
+				0x26, 0x03, // LD H, u8
+				0x36, 0x04, // LD (HL), u8
+			},
+			setup: func(cpu *CPU) {
+				// Set up HL to point to 0x8000
+				cpu.Registers[RegH] = 0x80
+				cpu.Registers[RegL] = 0x00
+				// Set value at (HL)
+				cpu.Memory[0x8000] = 0x42
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 8 {
+					t.Errorf("Expected PC to be 8, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegB] != 0x01 {
+					t.Errorf("Expected final B value to be 0x01, got 0x%02X", cpu.Registers[RegB])
+				}
+				if cpu.Registers[RegD] != 0x02 {
+					t.Errorf("Expected final D value to be 0x01, got 0x%02X", cpu.Registers[RegB])
+				}
+				if cpu.Registers[RegH] != 0x03 {
+					t.Errorf("Expected final H value to be 0x01, got 0x%02X", cpu.Registers[RegB])
+				}
+				if cpu.Memory[0x0300] != 0x04 {
+					t.Errorf("Expected final 0x0300 value to be 0x01, got 0x%02X", cpu.Registers[RegB])
+				}
+
+			},
+		},
 	}
 
 	for _, tc := range testCases {
