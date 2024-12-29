@@ -247,6 +247,44 @@ func TestExecuteProgram(t *testing.T) {
 
 			},
 		},
+		{
+			name: "increment u16 regs",
+			program: []uint8{
+				0x3E, 0x01, // LD A, u8
+				0x47,       // LD B, A
+				0x0E, 0x04, // LD C, u8
+				0x57,       // LD D, A
+				0x1E, 0x05, // LD E, u8
+				0x67,       // LD H, A
+				0x2E, 0x06, // LD L, u8
+				0x03, // INC BC
+				0x13, // INC DE
+				0x23, // INC HL
+				0x33, // INC SP
+			},
+			setup: func(cpu *CPU) {
+				// Set up HL to point to 0x8000
+				cpu.Registers[RegH] = 0x80
+				cpu.Registers[RegL] = 0x00
+				// Set value at (HL)
+				cpu.Memory[0x8000] = 0x42
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 15 {
+					t.Errorf("Expected PC to be 15, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegC] != 0x05 {
+					t.Errorf("Expected Register C to be 0x05, got %02X", cpu.Registers[RegC])
+				}
+				if cpu.Registers[RegE] != 0x06 {
+					t.Errorf("Expected Register E to be 0x06, got %02X", cpu.Registers[RegE])
+				}
+				if cpu.Registers[RegL] != 0x07 {
+					t.Errorf("Expected Register L to be 0x07, got %02X", cpu.Registers[RegL])
+				}
+
+			},
+		},
 	}
 
 	for _, tc := range testCases {

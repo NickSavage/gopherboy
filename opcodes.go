@@ -9,6 +9,9 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x02: // LD (BC), A
 		cpu.LoadMemoryImmediate(cpu.GetBC(), cpu.Registers[RegA])
 		cpu.PC += 1
+	case 0x03: // INC BC
+		cpu.IncrementU16Register(RegB, RegC)
+		cpu.PC += 1
 	case 0x06: // LD B, u8
 		cpu.LoadImmediate(RegB, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
@@ -18,6 +21,9 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x12: // LD (DE), A
 		cpu.LoadMemoryImmediate(cpu.GetDE(), cpu.Registers[RegA])
 		cpu.PC += 1
+	case 0x13: // INC DE
+		cpu.IncrementU16Register(RegD, RegE)
+		cpu.PC += 1
 	case 0x16: // LD D, u8
 		cpu.LoadImmediate(RegD, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
@@ -26,6 +32,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 2
 	case 0x22: //LD (HL+), A
 		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.Registers[RegA])
+		cpu.IncrementU16Register(RegH, RegL)
+		cpu.PC += 1
+	case 0x23: // INC HL
 		cpu.IncrementU16Register(RegH, RegL)
 		cpu.PC += 1
 	case 0x26: // LD H, u8
