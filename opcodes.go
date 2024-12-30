@@ -364,6 +364,33 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x7F: // LD A, A
 		cpu.LoadRegister(RegA, RegA)
 		cpu.PC++
+	case 0x80: // ADD A, B
+		cpu.AddU8Register(RegB)
+		cpu.PC++
+	case 0x81: // ADD A, C
+		cpu.AddU8Register(RegC)
+		cpu.PC++
+	case 0x82: // ADD A, D
+		cpu.AddU8Register(RegD)
+		cpu.PC++
+	case 0x83: // ADD A, E
+		cpu.AddU8Register(RegE)
+		cpu.PC++
+	case 0x84: // ADD A, H
+		cpu.AddU8Register(RegH)
+		cpu.PC++
+	case 0x85: // ADD A, L
+		cpu.AddU8Register(RegL)
+		cpu.PC++
+	case 0x86: // ADD A, (HL)
+		cpu.AddU8(cpu.Memory[cpu.GetHL()])
+		cpu.PC++
+	case 0x87: // ADD A, A
+		cpu.AddU8Register(RegA)
+		cpu.PC++
+	case 0xC6: // ADD A, u8
+		cpu.AddU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
 	}
 
 }
@@ -459,4 +486,27 @@ func (cpu *CPU) AddU16Registers(high1 uint8, low1 uint8, high2 uint8, low2 uint8
 
 	// N flag is always reset
 	cpu.Flags.SetN(false)
+}
+
+func (cpu *CPU) AddU8Register(reg uint8) {
+	cpu.AddU8(cpu.Registers[reg])
+}
+
+func (cpu *CPU) AddU8(value uint8) {
+	a := cpu.Registers[RegA]
+	b := value
+	result := uint16(a) + uint16(b) // Use uint16 to catch overflow
+
+	// Half carry occurs when there's a carry from bit 3 to bit 4
+	halfCarry := (a&0x0F)+(b&0x0F) > 0x0F
+
+	finalResult := uint8(result & 0xFF)
+
+	// Set flags
+	cpu.Flags.SetZ(finalResult == 0)
+	cpu.Flags.SetN(false)
+	cpu.Flags.SetH(halfCarry)
+	cpu.Flags.SetC(result > 0xFF)
+
+	cpu.Registers[RegA] = finalResult
 }

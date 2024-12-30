@@ -1068,3 +1068,222 @@ func TestAddRP(t *testing.T) {
 		})
 	}
 }
+
+func TestAddOpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "ADD A,B",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x06, 0x24, // LD B,0x24
+				0x80, // ADD A,B
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x66 {
+					t.Errorf("Expected A to be 0x66, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,C",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0x0E, 0x01, // LD C,0x01
+				0x81, // ADD A,C
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected Z, H, and C flags to be set, N to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,D",
+			program: []uint8{
+				0x3E, 0x0F, // LD A,0x0F
+				0x16, 0x01, // LD D,0x01
+				0x82, // ADD A,D
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x10 {
+					t.Errorf("Expected A to be 0x10, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected H flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,E",
+			program: []uint8{
+				0x3E, 0x80, // LD A,0x80
+				0x1E, 0x80, // LD E,0x80
+				0x83, // ADD A,E
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected Z and C flags to be set, N and H reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,H",
+			program: []uint8{
+				0x3E, 0x2F, // LD A,0x2F
+				0x26, 0x11, // LD H,0x11
+				0x84, // ADD A,H
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x40 {
+					t.Errorf("Expected A to be 0x40, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Errorf("Expected H flag to be set, all else to be reset, got %v", cpu.Flags)
+				}
+			},
+		},
+		{
+			name: "ADD A,L",
+			program: []uint8{
+				0x3E, 0x11, // LD A,0x11
+				0x2E, 0x22, // LD L,0x22
+				0x85, // ADD A,L
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x33 {
+					t.Errorf("Expected A to be 0x33, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,(HL)",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x3E, 0x42, // LD A,0x42
+				0x86, // ADD A,(HL)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Memory[0x8000] = 0x24 // Set value at (HL)
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 6 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x66 {
+					t.Errorf("Expected A to be 0x66, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,A",
+			program: []uint8{
+				0x3E, 0x44, // LD A,0x44
+				0x87, // ADD A,A
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x88 {
+					t.Errorf("Expected A to be 0x88, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,u8",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0xC6, 0x24, // ADD A,0x24
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x66 {
+					t.Errorf("Expected A to be 0x66, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,u8 with carry and half carry",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0xC6, 0x01, // ADD A,0x01
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected Z, H, and C flags to be set, N to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD A,u8 with half carry only",
+			program: []uint8{
+				0x3E, 0x0F, // LD A,0x0F
+				0xC6, 0x01, // ADD A,0x01
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x10 {
+					t.Errorf("Expected A to be 0x10, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected H flag to be set, others reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
