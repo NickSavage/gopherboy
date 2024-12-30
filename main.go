@@ -8,10 +8,54 @@ type CPU struct {
 	PC        uint16
 	SP        uint16
 	IME       uint16
+	Flags     *Flags
 
 	Memory []uint8
 	ROM    []uint8
 	Halted bool
+}
+
+type Flags struct {
+	value byte
+}
+
+const (
+	FlagZ byte = 1 << 7 // Zero flag (Bit 7)
+	FlagN byte = 1 << 6 // Subtract flag (Bit 6)
+	FlagH byte = 1 << 5 // Half Carry flag (Bit 5)
+	FlagC byte = 1 << 4 // Carry flag (Bit 4)
+	// Bits 0-3 are unused and always 0
+)
+
+// Methods to get flag values
+func (f *Flags) Z() bool { return f.value&FlagZ != 0 }
+func (f *Flags) N() bool { return f.value&FlagN != 0 }
+func (f *Flags) H() bool { return f.value&FlagH != 0 }
+func (f *Flags) C() bool { return f.value&FlagC != 0 }
+
+// Methods to set flag values
+func (f *Flags) SetZ(value bool) { f.setBit(FlagZ, value) }
+func (f *Flags) SetN(value bool) { f.setBit(FlagN, value) }
+func (f *Flags) SetH(value bool) { f.setBit(FlagH, value) }
+func (f *Flags) SetC(value bool) { f.setBit(FlagC, value) }
+
+// Helper method for setting bits
+func (f *Flags) setBit(bit byte, value bool) {
+	if value {
+		f.value |= bit
+	} else {
+		f.value &= ^bit
+	}
+}
+
+// Get the raw byte value
+func (f *Flags) Value() byte {
+	return f.value
+}
+
+// Set the raw byte value
+func (f *Flags) SetValue(value byte) {
+	f.value = value & 0xF0 // Only upper 4 bits are used
 }
 
 // 8-bit register constants
@@ -36,14 +80,6 @@ const (
 	RegPC        // Program Counter
 )
 
-// Flag register bit positions
-const (
-	FlagZ = 7 // Zero flag
-	FlagN = 6 // Subtract flag
-	FlagH = 5 // Half carry flag
-	FlagC = 4 // Carry flag
-)
-
 func InitCPU() *CPU {
 	result := CPU{
 		Memory:    make([]uint8, 65535),
@@ -51,6 +87,7 @@ func InitCPU() *CPU {
 		Registers: make([]uint8, 8),
 		Halted:    false,
 		SP:        0xFFFE,
+		Flags:     &Flags{},
 	}
 	return &result
 }

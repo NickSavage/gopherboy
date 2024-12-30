@@ -25,6 +25,13 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x06: // LD B, u8
 		cpu.LoadImmediate(RegB, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x07: // RLCA
+		cpu.Registers[RegA] = (cpu.Registers[RegA] << 1) | (cpu.Registers[RegA] >> 7)
+		cpu.Flags.SetC((cpu.Registers[RegA] & 0x01) != 0)
+		cpu.Flags.SetZ(false)
+		cpu.Flags.SetN(false)
+		cpu.Flags.SetH(false)
+		cpu.PC += 1
 	case 0x08: // LD (u16), SP
 		address := uint16(cpu.ROM[cpu.PC+1]) | (uint16(cpu.ROM[cpu.PC+2]) << 8)
 		cpu.Memory[address] = uint8(cpu.SP & 0xFF) // Store low byte

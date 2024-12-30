@@ -711,3 +711,116 @@ func TestLoadAFromRegisters(t *testing.T) {
 		})
 	}
 }
+
+func TestRotateInstructions(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "RLCA basic rotation",
+			program: []uint8{
+				0x3E, 0x85, // LD A, 0x85 (10000101)
+				0x07, // RLCA
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetValue(0x00) // Clear all flags
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				// After RLCA, 0x85 (10000101) becomes 0x0B (00001011)
+				// Because bit 7 (1) goes into both carry and bit 0
+				if cpu.Registers[RegA] != 0x0B {
+					t.Errorf("Expected Register A to be 0x0B, got %02X", cpu.Registers[RegA])
+				}
+				// Carry flag should be set (1)
+				if !cpu.Flags.C() {
+					t.Error("Expected Carry flag to be set")
+				}
+				// Other flags should be reset
+				if cpu.Flags.Z() {
+					t.Error("Expected Zero flag to be reset")
+				}
+				if cpu.Flags.N() {
+					t.Error("Expected N flag to be reset")
+				}
+				if cpu.Flags.H() {
+					t.Error("Expected H flag to be reset")
+				}
+			},
+		},
+		{
+			name: "RLCA no carry case",
+			program: []uint8{
+				0x3E, 0x42, // LD A, 0x42 (01000010)
+				0x07, // RLCA
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetValue(0xF0) // Set all flags initially
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				// After RLCA, 0x42 (01000010) becomes 0x84 (10000100)
+				if cpu.Registers[RegA] != 0x84 {
+					t.Errorf("Expected Register A to be 0x84, got %02X", cpu.Registers[RegA])
+				}
+				// Carry flag should be reset (0)
+				if cpu.Flags.C() {
+					t.Error("Expected Carry flag to be reset")
+				}
+				// Other flags should be reset
+				if cpu.Flags.Z() {
+					t.Error("Expected Zero flag to be reset")
+				}
+				if cpu.Flags.N() {
+					t.Error("Expected N flag to be reset")
+				}
+				if cpu.Flags.H() {
+					t.Error("Expected H flag to be reset")
+				}
+			},
+		},
+		{
+			name: "RLCA multiple rotations",
+			program: []uint8{
+				0x3E, 0xFF, // LD A, 0xFF
+				0x07, // RLCA
+				0x07, // RLCA
+				0x07, // RLCA
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetValue(0x00)
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				// After 3 RLCAs, 0xFF should still be 0xFF
+				if cpu.Registers[RegA] != 0xFF {
+					t.Errorf("Expected Register A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				// Carry flag should be set (1)
+				if !cpu.Flags.C() {
+					t.Error("Expected Carry flag to be set")
+				}
+				// Other flags should be reset
+				if cpu.Flags.Z() {
+					t.Error("Expected Zero flag to be reset")
+				}
+				if cpu.Flags.N() {
+					t.Error("Expected N flag to be reset")
+				}
+				if cpu.Flags.H() {
+					t.Error("Expected H flag to be reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
