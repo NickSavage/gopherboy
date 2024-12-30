@@ -824,3 +824,247 @@ func TestRotateInstructions(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadRP16Immediate(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "LD BC,u16",
+			program: []uint8{
+				0x01, 0x34, 0x12, // LD BC,0x1234
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				bc := uint16(cpu.Registers[RegB])<<8 | uint16(cpu.Registers[RegC])
+				if bc != 0x1234 {
+					t.Errorf("Expected BC to be 0x1234, got %04X", bc)
+				}
+				// Verify individual registers
+				if cpu.Registers[RegB] != 0x12 {
+					t.Errorf("Expected B to be 0x12, got %02X", cpu.Registers[RegB])
+				}
+				if cpu.Registers[RegC] != 0x34 {
+					t.Errorf("Expected C to be 0x34, got %02X", cpu.Registers[RegC])
+				}
+			},
+		},
+		{
+			name: "LD DE,u16",
+			program: []uint8{
+				0x11, 0x78, 0x56, // LD DE,0x5678
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				de := uint16(cpu.Registers[RegD])<<8 | uint16(cpu.Registers[RegE])
+				if de != 0x5678 {
+					t.Errorf("Expected DE to be 0x5678, got %04X", de)
+				}
+				// Verify individual registers
+				if cpu.Registers[RegD] != 0x56 {
+					t.Errorf("Expected D to be 0x56, got %02X", cpu.Registers[RegD])
+				}
+				if cpu.Registers[RegE] != 0x78 {
+					t.Errorf("Expected E to be 0x78, got %02X", cpu.Registers[RegE])
+				}
+			},
+		},
+		{
+			name: "LD HL,u16",
+			program: []uint8{
+				0x21, 0xBC, 0x9A, // LD HL,0x9ABC
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+				if hl != 0x9ABC {
+					t.Errorf("Expected HL to be 0x9ABC, got %04X", hl)
+				}
+				// Verify individual registers
+				if cpu.Registers[RegH] != 0x9A {
+					t.Errorf("Expected H to be 0x9A, got %02X", cpu.Registers[RegH])
+				}
+				if cpu.Registers[RegL] != 0xBC {
+					t.Errorf("Expected L to be 0xBC, got %02X", cpu.Registers[RegL])
+				}
+			},
+		},
+		{
+			name: "LD SP,u16",
+			program: []uint8{
+				0x31, 0xEF, 0xCD, // LD SP,0xCDEF
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.SP != 0xCDEF {
+					t.Errorf("Expected SP to be 0xCDEF, got %04X", cpu.SP)
+				}
+			},
+		},
+		{
+			name: "Multiple LD rr,u16",
+			program: []uint8{
+				0x01, 0x34, 0x12, // LD BC,0x1234
+				0x11, 0x78, 0x56, // LD DE,0x5678
+				0x21, 0xBC, 0x9A, // LD HL,0x9ABC
+				0x31, 0xEF, 0xCD, // LD SP,0xCDEF
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 12 {
+					t.Errorf("Expected PC to be 12, got %d", cpu.PC)
+				}
+
+				bc := uint16(cpu.Registers[RegB])<<8 | uint16(cpu.Registers[RegC])
+				if bc != 0x1234 {
+					t.Errorf("Expected BC to be 0x1234, got %04X", bc)
+				}
+
+				de := uint16(cpu.Registers[RegD])<<8 | uint16(cpu.Registers[RegE])
+				if de != 0x5678 {
+					t.Errorf("Expected DE to be 0x5678, got %04X", de)
+				}
+
+				hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+				if hl != 0x9ABC {
+					t.Errorf("Expected HL to be 0x9ABC, got %04X", hl)
+				}
+
+				if cpu.SP != 0xCDEF {
+					t.Errorf("Expected SP to be 0xCDEF, got %04X", cpu.SP)
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
+
+func TestAddRP(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "ADD HL,BC",
+			program: []uint8{
+				0x21, 0x00, 0x10, // LD HL,0x1000
+				0x01, 0xFF, 0x0F, // LD BC,0x0FFF
+				0x09, // ADD HL,BC
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 7 {
+					t.Errorf("Expected PC to be 7, got %d", cpu.PC)
+				}
+
+				// Result should be 0x1FFF
+				hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+				if hl != 0x1FFF {
+					t.Errorf("Expected HL to be 0x1FFF, got %04X", hl)
+				}
+				bc := uint16(cpu.Registers[RegB])<<8 | uint16(cpu.Registers[RegC])
+				if bc != 0x0FFF {
+					t.Errorf("Expected BC to be 0x0FFF, got %04X", bc)
+				}
+
+				// N flag should be reset
+				if cpu.Flags.N() {
+					t.Error("Expected N flag to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD HL,DE",
+			program: []uint8{
+				0x21, 0xFF, 0xFF, // LD HL,0xFFFF
+				0x11, 0x01, 0x00, // LD DE,0x0001
+				0x19, // ADD HL,DE
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 7 {
+					t.Errorf("Expected PC to be 7, got %d", cpu.PC)
+				}
+
+				// Result should be 0x0000 with carry
+				hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+				if hl != 0x0000 {
+					t.Errorf("Expected HL to be 0x0000, got %04X", hl)
+				}
+
+				// Carry flag should be set
+				if !cpu.Flags.C() {
+					t.Error("Expected Carry flag to be set")
+				}
+
+				// N flag should be reset
+				if cpu.Flags.N() {
+					t.Error("Expected N flag to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD HL,HL",
+			program: []uint8{
+				0x21, 0xF0, 0x0F, // LD HL,0x0FF0
+				0x29, // ADD HL,HL
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+
+				// Result should be 0x1FE0
+				hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+				if hl != 0x1FE0 {
+					t.Errorf("Expected HL to be 0x1FE0, got %04X", hl)
+				}
+
+				// N flag should be reset
+				if cpu.Flags.N() {
+					t.Error("Expected N flag to be reset")
+				}
+			},
+		},
+		{
+			name: "ADD HL,SP",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x31, 0x00, 0x80, // LD SP,0x8000
+				0x39, // ADD HL,SP
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 7 {
+					t.Errorf("Expected PC to be 7, got %d", cpu.PC)
+				}
+
+				// Result should be 0x0000
+				hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+				if hl != 0x0000 {
+					t.Errorf("Expected HL to be 0x0000, got %04X", hl)
+				}
+
+				// Carry flag should be set since 0x8000 + 0x8000 = 0x10000
+				if !cpu.Flags.C() {
+					t.Error("Expected Carry flag to be set")
+				}
+
+				// N flag should be reset
+				if cpu.Flags.N() {
+					t.Error("Expected N flag to be reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}

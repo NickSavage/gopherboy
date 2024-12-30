@@ -7,8 +7,8 @@ func (cpu *CPU) ParseNextOpcode() {
 	log.Printf("Opcode: 0x%02X", next)
 	switch next {
 	case 0x01: // LD BC, u16
-		cpu.Registers[RegB] = cpu.ROM[cpu.PC+1]
-		cpu.Registers[RegC] = cpu.ROM[cpu.PC+2]
+		cpu.Registers[RegB] = cpu.ROM[cpu.PC+2]
+		cpu.Registers[RegC] = cpu.ROM[cpu.PC+1]
 		cpu.PC += 3
 	case 0x02: // LD (BC), A
 		cpu.LoadMemoryImmediate(cpu.GetBC(), cpu.Registers[RegA])
@@ -37,6 +37,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.Memory[address] = uint8(cpu.SP & 0xFF) // Store low byte
 		cpu.Memory[address+1] = uint8(cpu.SP >> 8) // Store high byte
 		cpu.PC += 3
+	case 0x09: // ADD HL, BC
+		cpu.AddU16Registers(RegH, RegL, RegB, RegC)
+		cpu.PC += 1
 	case 0x0A: // LD A, (BC)
 		cpu.Registers[RegA] = cpu.Memory[cpu.GetBC()]
 		cpu.PC += 1
@@ -53,8 +56,8 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.LoadImmediate(RegC, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0x11: // LD DE, u16
-		cpu.Registers[RegD] = cpu.ROM[cpu.PC+1]
-		cpu.Registers[RegE] = cpu.ROM[cpu.PC+2]
+		cpu.Registers[RegD] = cpu.ROM[cpu.PC+2]
+		cpu.Registers[RegE] = cpu.ROM[cpu.PC+1]
 		cpu.PC += 3
 	case 0x12: // LD (DE), A
 		cpu.LoadMemoryImmediate(cpu.GetDE(), cpu.Registers[RegA])
@@ -71,6 +74,9 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x16: // LD D, u8
 		cpu.LoadImmediate(RegD, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x19: // ADD HL, DE
+		cpu.AddU16Registers(RegH, RegL, RegD, RegE)
+		cpu.PC += 1
 	case 0x1A: // LD A, (DE)
 		cpu.Registers[RegA] = cpu.Memory[cpu.GetDE()]
 		cpu.PC += 1
@@ -87,8 +93,8 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.LoadImmediate(RegE, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0x21: // LD HL, u16
-		cpu.Registers[RegH] = cpu.ROM[cpu.PC+1]
-		cpu.Registers[RegL] = cpu.ROM[cpu.PC+2]
+		cpu.Registers[RegH] = cpu.ROM[cpu.PC+2]
+		cpu.Registers[RegL] = cpu.ROM[cpu.PC+1]
 		cpu.PC += 3
 	case 0x22: //LD (HL+), A
 		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.Registers[RegA])
@@ -106,6 +112,9 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x26: // LD H, u8
 		cpu.LoadImmediate(RegH, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x29: // ADD HL, HL
+		cpu.AddU16Registers(RegH, RegL, RegH, RegL)
+		cpu.PC += 1
 	case 0x2A: // LD A, (HL+)
 		cpu.Registers[RegA] = cpu.Memory[cpu.GetHL()]
 		cpu.IncrementU16Register(RegH, RegL)
@@ -144,6 +153,9 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x36: // LD (HL),u8
 		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x39: // ADD HL, SP
+		cpu.AddU16Register(RegH, RegL, cpu.SP)
+		cpu.PC += 1
 	case 0x3A: // LD A, (HL-)
 		cpu.Registers[RegA] = cpu.Memory[cpu.GetHL()]
 		cpu.DecrementU16Register(RegH, RegL)
@@ -411,4 +423,40 @@ func (cpu *CPU) DecrementU16Register(high uint8, low uint8) {
 	value--
 	cpu.Registers[high] = uint8(value >> 8)
 	cpu.Registers[low] = uint8(value & 0xFF)
+}
+
+func (cpu *CPU) AddU16Register(high uint8, low uint8, value uint16) {
+	currentValue := uint16(cpu.Registers[high])<<8 | uint16(cpu.Registers[low])
+	result := currentValue + value
+
+	// Set carry flag if result overflows 16 bits
+	cpu.Flags.SetC(result < currentValue)
+
+	// Half carry is set if bit 11 overflows
+	cpu.Flags.SetH((currentValue&0x0FFF)+(value&0x0FFF) > 0x0FFF)
+
+	cpu.Registers[high] = uint8(result >> 8)
+	cpu.Registers[low] = uint8(result & 0xFF)
+
+	cpu.Flags.SetN(false)
+}
+
+func (cpu *CPU) AddU16Registers(high1 uint8, low1 uint8, high2 uint8, low2 uint8) {
+	value1 := uint16(cpu.Registers[high1])<<8 | uint16(cpu.Registers[low1])
+	value2 := uint16(cpu.Registers[high2])<<8 | uint16(cpu.Registers[low2])
+
+	result := value1 + value2
+
+	// Set carry flag if result overflows 16 bits
+	cpu.Flags.SetC(result < value1) // Changed from result > 0xFFFF
+
+	// Half carry is set if bit 11 overflows
+	cpu.Flags.SetH((value1&0x0FFF)+(value2&0x0FFF) > 0x0FFF)
+
+	// Store result in destination registers
+	cpu.Registers[high1] = uint8(result >> 8)
+	cpu.Registers[low1] = uint8(result & 0xFF)
+
+	// N flag is always reset
+	cpu.Flags.SetN(false)
 }
