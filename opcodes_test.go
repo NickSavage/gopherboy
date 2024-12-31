@@ -1429,3 +1429,841 @@ func TestADCOpcodes(t *testing.T) {
 		})
 	}
 }
+func TestSubOpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "SUB B - Basic subtraction",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x06, 0x24, // LD B,0x24
+				0x90, // SUB B
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x1E {
+					t.Errorf("Expected A to be 0x1E, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Errorf("Expected N flag to be set, others reset, got %v", cpu.Flags)
+				}
+			},
+		},
+		{
+			name: "SUB C - Subtraction with half carry",
+			program: []uint8{
+				0x3E, 0x20, // LD A,0x20
+				0x0E, 0x11, // LD C,0x11
+				0x91, // SUB C
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x0F {
+					t.Errorf("Expected A to be 0x0F, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "SUB D - Subtraction with carry",
+			program: []uint8{
+				0x3E, 0x20, // LD A,0x20
+				0x16, 0x30, // LD D,0x30
+				0x92, // SUB D
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xF0 { // 0x20 - 0x30 = -0x10 = 0xF0
+					t.Errorf("Expected A to be 0xF0, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected N, H, and C flags to be set, Z reset")
+				}
+			},
+		},
+		{
+			name: "SUB (HL) - Memory operation",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x3E, 0x42, // LD A,0x42
+				0x96, // SUB (HL)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Memory[0x8000] = 0x24 // Set value at (HL)
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 6 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x1E { // 0x42 - 0x24
+					t.Errorf("Expected A to be 0x1E, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, others reset")
+					t.Errorf("flags: z %v, n %v, h %v, c %v", cpu.Flags.Z(), cpu.Flags.N(), cpu.Flags.H(), cpu.Flags.C())
+
+				}
+			},
+		},
+		{
+			name: "SUB A - Subtraction from self",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x97, // SUB A
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and N flags to be set, H and C reset")
+				}
+			},
+		},
+		{
+			name: "SUB u8 - Immediate value",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0xD6, 0x24, // SUB 0x24
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x1E {
+					t.Errorf("Expected A to be 0x1E, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "SUB - Zero result",
+			program: []uint8{
+				0x3E, 0x24, // LD A,0x24
+				0xD6, 0x24, // SUB 0x24
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and N flags to be set, H and C reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
+func TestSBCOpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "SBC A,B - Basic subtraction with no carry",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x06, 0x24, // LD B,0x24
+				0x98, // SBC B
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(false) // Clear carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x1E { // 0x42 - 0x24 - 0
+					t.Errorf("Expected A to be 0x1E, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "SBC A,B - Subtraction with carry set",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x06, 0x24, // LD B,0x24
+				0x98, // SBC B
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(true) // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x1D { // 0x42 - 0x24 - 1
+					t.Errorf("Expected A to be 0x1D, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "SBC A,(HL) - Memory operation with carry",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x3E, 0x42, // LD A,0x42
+				0x9E, // SBC (HL)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Memory[0x8000] = 0x24 // Set value at (HL)
+				cpu.Flags.SetC(true)      // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 6 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x1D { // 0x42 - 0x24 - 1
+					t.Errorf("Expected A to be 0x1D, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "SBC A,A - Subtract A from itself with carry",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x9F, // SBC A
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(true) // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xFF { // 0x42 - 0x42 - 1 = -1 = 0xFF
+					t.Errorf("Expected A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected N, H, and C flags to be set, Z reset")
+				}
+			},
+		},
+		{
+			name: "SBC A,u8 - Immediate value with carry",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0xDE, 0x24, // SBC 0x24
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(true) // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x1D { // 0x42 - 0x24 - 1
+					t.Errorf("Expected A to be 0x1D, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "SBC A,u8 - Borrow and half-borrow test",
+			program: []uint8{
+				0x3E, 0x10, // LD A,0x10
+				0xDE, 0x20, // SBC 0x20
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(true) // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xEF { // 0x10 - 0x20 - 1 = -0x11 = 0xEF
+					t.Errorf("Expected A to be 0xEF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected N, H, and C flags to be set, Z reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
+func TestCPOpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "CP B - Equal values",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x06, 0x42, // LD B,0x42
+				0xB8, // CP B
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x42 { // A should be unchanged
+					t.Errorf("Expected A to be 0x42, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and N flags to be set, H and C reset")
+				}
+			},
+		},
+		{
+			name: "CP C - A greater than C",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x0E, 0x24, // LD C,0x24
+				0xB9, // CP C
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x42 { // A should be unchanged
+					t.Errorf("Expected A to be 0x42, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, Z and C reset")
+				}
+			},
+		},
+		{
+			name: "CP D - A less than D",
+			program: []uint8{
+				0x3E, 0x20, // LD A,0x20
+				0x16, 0x30, // LD D,0x30
+				0xBA, // CP D
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x20 { // A should be unchanged
+					t.Errorf("Expected A to be 0x20, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected N and C flags to be set, Z and H reset")
+				}
+			},
+		},
+		{
+			name: "CP (HL) - Memory comparison",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x3E, 0x42, // LD A,0x42
+				0xBE, // CP (HL)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Memory[0x8000] = 0x42 // Set value at (HL)
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 6 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x42 { // A should be unchanged
+					t.Errorf("Expected A to be 0x42, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and N flags to be set, H and C reset")
+				}
+			},
+		},
+		{
+			name: "CP A - Compare with self",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0xBF, // CP A
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x42 { // A should be unchanged
+					t.Errorf("Expected A to be 0x42, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and N flags to be set, H and C reset")
+				}
+			},
+		},
+		{
+			name: "CP u8 - Immediate value comparison",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0xFE, 0x42, // CP 0x42
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x42 { // A should be unchanged
+					t.Errorf("Expected A to be 0x42, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and N flags to be set, H and C reset")
+				}
+			},
+		},
+		{
+			name: "CP - Half carry test",
+			program: []uint8{
+				0x3E, 0x20, // LD A,0x20
+				0xFE, 0x11, // CP 0x11
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x20 { // A should be unchanged
+					t.Errorf("Expected A to be 0x20, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected N and H flags to be set, Z and C reset")
+				}
+			},
+		},
+		{
+			name: "CP - Zero and carry test",
+			program: []uint8{
+				0x3E, 0x10, // LD A,0x10
+				0xFE, 0x20, // CP 0x20
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x10 { // A should be unchanged
+					t.Errorf("Expected A to be 0x10, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || !cpu.Flags.N() || cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected N and C flags to be set, Z and H reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
+func TestANDOpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "AND B - Basic AND operation",
+			program: []uint8{
+				0x3E, 0xF0, // LD A,0xF0
+				0x06, 0x0F, // LD B,0x0F
+				0xA0, // AND B
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and H flags to be set, N and C reset")
+				}
+			},
+		},
+		{
+			name: "AND C - Non-zero result",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0x0E, 0x0F, // LD C,0x0F
+				0xA1, // AND C
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x0F {
+					t.Errorf("Expected A to be 0x0F, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected H flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "AND D - All ones",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0x16, 0xFF, // LD D,0xFF
+				0xA2, // AND D
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xFF {
+					t.Errorf("Expected A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected H flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "AND (HL) - Memory operation",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x3E, 0xFF, // LD A,0xFF
+				0xA6, // AND (HL)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Memory[0x8000] = 0x0F // Set value at (HL)
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 6 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x0F {
+					t.Errorf("Expected A to be 0x0F, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected H flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "AND A - Self operation",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0xA7, // AND A
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xFF {
+					t.Errorf("Expected A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected H flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "AND u8 - Immediate value",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0xE6, 0x0F, // AND 0x0F
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x0F {
+					t.Errorf("Expected A to be 0x0F, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected H flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "AND - Zero result",
+			program: []uint8{
+				0x3E, 0xF0, // LD A,0xF0
+				0xE6, 0x0F, // AND 0x0F
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and H flags to be set, N and C reset")
+				}
+			},
+		},
+		{
+			name: "AND - Alternating bits",
+			program: []uint8{
+				0x3E, 0xAA, // LD A,0xAA
+				0xE6, 0x55, // AND 0x55
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z and H flags to be set, N and C reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
+func TestXOROpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "XOR B - Basic XOR operation",
+			program: []uint8{
+				0x3E, 0xF0, // LD A,0xF0
+				0x06, 0xFF, // LD B,0xFF
+				0xA8, // XOR B
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x0F {
+					t.Errorf("Expected A to be 0x0F, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "XOR C - Zero result",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0x0E, 0xFF, // LD C,0xFF
+				0xA9, // XOR C
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "XOR (HL) - Memory operation",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x3E, 0xFF, // LD A,0xFF
+				0xAE, // XOR (HL)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Memory[0x8000] = 0x0F // Set value at (HL)
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 6 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xF0 {
+					t.Errorf("Expected A to be 0xF0, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "XOR A - Self operation (zero)",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0xAF, // XOR A
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "XOR u8 - Immediate value",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0xEE, 0x0F, // XOR 0x0F
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xF0 {
+					t.Errorf("Expected A to be 0xF0, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
+
+func TestOROpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "OR B - Basic OR operation",
+			program: []uint8{
+				0x3E, 0xF0, // LD A,0xF0
+				0x06, 0x0F, // LD B,0x0F
+				0xB0, // OR B
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xFF {
+					t.Errorf("Expected A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "OR C - Zero input",
+			program: []uint8{
+				0x3E, 0x00, // LD A,0x00
+				0x0E, 0x00, // LD C,0x00
+				0xB1, // OR C
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x00 {
+					t.Errorf("Expected A to be 0x00, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected Z flag to be set, others reset")
+				}
+			},
+		},
+		{
+			name: "OR (HL) - Memory operation",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x3E, 0xF0, // LD A,0xF0
+				0xB6, // OR (HL)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Memory[0x8000] = 0x0F // Set value at (HL)
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 6 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xFF {
+					t.Errorf("Expected A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "OR A - Self operation (no change)",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0xB7, // OR A
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xFF {
+					t.Errorf("Expected A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "OR u8 - Immediate value",
+			program: []uint8{
+				0x3E, 0xF0, // LD A,0xF0
+				0xF6, 0x0F, // OR 0x0F
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xFF {
+					t.Errorf("Expected A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "OR - Alternating bits",
+			program: []uint8{
+				0x3E, 0xAA, // LD A,0xAA
+				0xF6, 0x55, // OR 0x55
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0xFF {
+					t.Errorf("Expected A to be 0xFF, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}

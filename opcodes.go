@@ -412,11 +412,173 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x8F: // ADC A, A
 		cpu.AdcU8Register(RegA)
 		cpu.PC++
+	case 0x90: // SUB A, B
+		cpu.SubU8Register(RegB)
+		cpu.PC++
+	case 0x91: // SUB A, C
+		cpu.SubU8Register(RegC)
+		cpu.PC++
+	case 0x92: // SUB A, D
+		cpu.SubU8Register(RegD)
+		cpu.PC++
+	case 0x93: // SUB A, E
+		cpu.SubU8Register(RegE)
+		cpu.PC++
+	case 0x94: // SUB A, H
+		cpu.SubU8Register(RegH)
+		cpu.PC++
+	case 0x95: // SUB A, L
+		cpu.SubU8Register(RegL)
+		cpu.PC++
+	case 0x96: // SUB A, (HL)
+		cpu.SubU8(cpu.Memory[cpu.GetHL()])
+		cpu.PC++
+	case 0x97: // SUB A, A
+		cpu.SubU8Register(RegA)
+		cpu.PC++
+	case 0x98: // SBC A, B
+		cpu.SbcU8Register(RegB)
+		cpu.PC++
+	case 0x99: // SBC A, C
+		cpu.SbcU8Register(RegC)
+		cpu.PC++
+	case 0x9A: // SBC A, D
+		cpu.SbcU8Register(RegD)
+		cpu.PC++
+	case 0x9B: // SBC A, E
+		cpu.SbcU8Register(RegE)
+		cpu.PC++
+	case 0x9C: // SBC A, H
+		cpu.SbcU8Register(RegH)
+		cpu.PC++
+	case 0x9D: // SBC A, L
+		cpu.SbcU8Register(RegL)
+		cpu.PC++
+	case 0x9E: // SBC A, (HL)
+		cpu.SbcU8(cpu.Memory[cpu.GetHL()])
+		cpu.PC++
+	case 0x9F: // SBC A, A
+		cpu.SbcU8Register(RegA)
+		cpu.PC++
+	case 0xA0: // AND A, B
+		cpu.AndU8Register(RegB)
+		cpu.PC++
+	case 0xA1: // AND A, C
+		cpu.AndU8Register(RegC)
+		cpu.PC++
+	case 0xA2: // AND A, D
+		cpu.AndU8Register(RegD)
+		cpu.PC++
+	case 0xA3: // AND A, E
+		cpu.AndU8Register(RegE)
+		cpu.PC++
+	case 0xA4: // AND A, H
+		cpu.AndU8Register(RegH)
+		cpu.PC++
+	case 0xA5: // AND A, L
+		cpu.AndU8Register(RegL)
+		cpu.PC++
+	case 0xA6: // AND A, (HL)
+		cpu.AndU8(cpu.Memory[cpu.GetHL()])
+		cpu.PC++
+	case 0xA7: // AND A, A
+		cpu.AndU8Register(RegA)
+		cpu.PC++
+	case 0xA8: // XOR A, B
+		cpu.XorU8Register(RegB)
+		cpu.PC++
+	case 0xA9: // XOR A, C
+		cpu.XorU8Register(RegC)
+		cpu.PC++
+	case 0xAA: // XOR A, D
+		cpu.XorU8Register(RegD)
+		cpu.PC++
+	case 0xAB: // XOR A, E
+		cpu.XorU8Register(RegE)
+		cpu.PC++
+	case 0xAC: // XOR A, H
+		cpu.XorU8Register(RegH)
+		cpu.PC++
+	case 0xAD: // XOR A, L
+		cpu.XorU8Register(RegL)
+		cpu.PC++
+	case 0xAE: // XOR A, (HL)
+		cpu.XorU8(cpu.Memory[cpu.GetHL()])
+		cpu.PC++
+	case 0xAF: // XOR A, A
+		cpu.XorU8Register(RegA)
+		cpu.PC++
+	case 0xB0: // OR A, B
+		cpu.OrU8Register(RegB)
+		cpu.PC++
+	case 0xB1: // OR A, C
+		cpu.OrU8Register(RegC)
+		cpu.PC++
+	case 0xB2: // OR A, D
+		cpu.OrU8Register(RegD)
+		cpu.PC++
+	case 0xB3: // OR A, E
+		cpu.OrU8Register(RegE)
+		cpu.PC++
+	case 0xB4: // OR A, H
+		cpu.OrU8Register(RegH)
+		cpu.PC++
+	case 0xB5: // OR A, L
+		cpu.OrU8Register(RegL)
+		cpu.PC++
+	case 0xB6: // OR A, (HL)
+		cpu.OrU8(cpu.Memory[cpu.GetHL()])
+		cpu.PC++
+	case 0xB7: // OR A, A
+		cpu.OrU8Register(RegA)
+		cpu.PC++
+	case 0xB8: // CP A, B
+		cpu.CpU8Register(RegB)
+		cpu.PC++
+	case 0xB9: // CP A, C
+		cpu.CpU8Register(RegC)
+		cpu.PC++
+	case 0xBA: // CP A, D
+		cpu.CpU8Register(RegD)
+		cpu.PC++
+	case 0xBB: // CP A, E
+		cpu.CpU8Register(RegE)
+		cpu.PC++
+	case 0xBC: // CP A, H
+		cpu.CpU8Register(RegH)
+		cpu.PC++
+	case 0xBD: // CP A, L
+		cpu.CpU8Register(RegL)
+		cpu.PC++
+	case 0xBE: // CP A, (HL)
+		cpu.CpU8(cpu.Memory[cpu.GetHL()])
+		cpu.PC++
+	case 0xBF: // CP A, A
+		cpu.CpU8Register(RegA)
+		cpu.PC++
 	case 0xC6: // ADD A, u8
 		cpu.AddU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0xCE: // ADC A, u8
 		cpu.AdcU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0xD6: // SUB A, u8
+		cpu.SubU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0xE6: // AND A, u8
+		cpu.AndU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0xF6: // OR A, u8
+		cpu.OrU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0xDE: // SBC A, u8
+		cpu.SbcU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0xEE: // XOR A, u8
+		cpu.XorU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0xFE: // CP A, u8
+		cpu.CpU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	}
 
@@ -561,4 +723,109 @@ func (cpu *CPU) AdcU8(value uint8) {
 
 func (cpu *CPU) AdcU8Register(reg uint8) {
 	cpu.AdcU8(cpu.Registers[reg])
+}
+
+func (cpu *CPU) SubU8Register(reg uint8) {
+	cpu.SubU8(cpu.Registers[reg])
+}
+
+func (cpu *CPU) SbcU8Register(reg uint8) {
+	cpu.SbcU8(cpu.Registers[reg])
+}
+func (cpu *CPU) SubU8(value uint8) {
+	a := cpu.Registers[RegA]
+	b := value
+
+	result := a - b
+	cpu.Flags.SetZ(result == 0)
+	cpu.Flags.SetN(true) // N is always set for subtraction
+	cpu.Flags.SetH((a & 0xF) < (b & 0xF))
+	cpu.Flags.SetC(a < b)
+
+	cpu.Registers[RegA] = result
+}
+
+func (cpu *CPU) SbcU8(value uint8) {
+	a := cpu.Registers[RegA]
+	b := value
+	carry := uint8(0)
+	if cpu.Flags.C() {
+		carry = 1
+	}
+
+	// Calculate result including carry
+	result := a - b - carry
+
+	// Half carry occurs when borrowing from bit 4
+	halfCarry := (a & 0x0F) < ((b & 0x0F) + carry)
+
+	// Carry occurs if result would be negative
+	carryOut := uint16(a) < uint16(b)+uint16(carry)
+
+	cpu.Flags.SetZ(result == 0)
+	cpu.Flags.SetN(true) // N is always set for subtraction
+	cpu.Flags.SetH(halfCarry)
+	cpu.Flags.SetC(carryOut)
+
+	cpu.Registers[RegA] = result
+}
+func (cpu *CPU) CpU8Register(reg uint8) {
+	cpu.CpU8(cpu.Registers[reg])
+}
+
+func (cpu *CPU) CpU8(value uint8) {
+	a := cpu.Registers[RegA]
+	b := value
+
+	result := a - b
+	cpu.Flags.SetZ(result == 0)
+	cpu.Flags.SetN(true) // N is always set for subtraction
+	cpu.Flags.SetH((a & 0xF) < (b & 0xF))
+	cpu.Flags.SetC(a < b)
+}
+func (cpu *CPU) AndU8Register(reg uint8) {
+	cpu.AndU8(cpu.Registers[reg])
+}
+
+func (cpu *CPU) AndU8(value uint8) {
+	a := cpu.Registers[RegA]
+	b := value
+
+	result := a & b
+	cpu.Registers[RegA] = result
+	cpu.Flags.SetZ(result == 0)
+	cpu.Flags.SetN(false) // N is always set for subtraction
+	cpu.Flags.SetH(true)
+	cpu.Flags.SetC(false)
+}
+
+func (cpu *CPU) XorU8Register(reg uint8) {
+	cpu.XorU8(cpu.Registers[reg])
+}
+
+func (cpu *CPU) XorU8(value uint8) {
+	a := cpu.Registers[RegA]
+	b := value
+	result := a ^ b
+
+	cpu.Registers[RegA] = result
+	cpu.Flags.SetZ(result == 0)
+	cpu.Flags.SetN(false)
+	cpu.Flags.SetH(false)
+	cpu.Flags.SetC(false)
+}
+
+func (cpu *CPU) OrU8Register(reg uint8) {
+	cpu.OrU8(cpu.Registers[reg])
+}
+
+func (cpu *CPU) OrU8(value uint8) {
+	a := cpu.Registers[RegA]
+	b := value
+	result := a | b
+	cpu.Registers[RegA] = result
+	cpu.Flags.SetZ(result == 0)
+	cpu.Flags.SetN(false)
+	cpu.Flags.SetH(false)
+	cpu.Flags.SetC(false)
 }
