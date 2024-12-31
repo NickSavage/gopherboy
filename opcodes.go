@@ -112,6 +112,30 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x26: // LD H, u8
 		cpu.LoadImmediate(RegH, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x27: // DAA
+		a := cpu.Registers[RegA]
+		var adjust uint8 = 0
+
+		if cpu.Flags.H() || (!cpu.Flags.N() && (a&0x0F) > 9) {
+			adjust |= 0x06
+		}
+
+		if cpu.Flags.C() || (!cpu.Flags.N() && a > 0x99) {
+			adjust |= 0x60
+			cpu.Flags.SetC(true)
+		} else {
+			cpu.Flags.SetC(false)
+		}
+
+		if cpu.Flags.N() {
+			cpu.Registers[RegA] -= adjust
+		} else {
+			cpu.Registers[RegA] += adjust
+		}
+
+		cpu.Flags.SetZ(cpu.Registers[RegA] == 0)
+		cpu.Flags.SetH(false)
+		cpu.PC++
 	case 0x29: // ADD HL, HL
 		cpu.AddU16Registers(RegH, RegL, RegH, RegL)
 		cpu.PC += 1
@@ -153,6 +177,11 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x36: // LD (HL),u8
 		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x37: // SCF
+		cpu.Flags.SetH(false)
+		cpu.Flags.SetC(true)
+		cpu.Flags.SetN(false)
+		cpu.PC += 1
 	case 0x39: // ADD HL, SP
 		cpu.AddU16Register(RegH, RegL, cpu.SP)
 		cpu.PC += 1
@@ -172,6 +201,11 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x3E: // LD A, u8
 		cpu.LoadImmediate(RegA, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x3F: // CCF
+		cpu.Flags.SetH(false)
+		cpu.Flags.SetC(!cpu.Flags.C())
+		cpu.Flags.SetN(false)
+		cpu.PC += 1
 	case 0x40: // LD B,B
 		cpu.LoadRegister(RegB, RegB)
 		cpu.PC++
@@ -556,26 +590,50 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0xBF: // CP A, A
 		cpu.CpU8Register(RegA)
 		cpu.PC++
+	case 0xC1: // POP BC
+		cpu.PopU16(RegB, RegC)
+		cpu.PC++
+	case 0xC5: // PUSH BC
+		cpu.PushU16(RegB, RegC)
+		cpu.PC++
 	case 0xC6: // ADD A, u8
 		cpu.AddU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0xCE: // ADC A, u8
 		cpu.AdcU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0xD1: // POP DE
+		cpu.PopU16(RegD, RegE)
+		cpu.PC++
+	case 0xD5: // PUSH DE
+		cpu.PushU16(RegD, RegE)
+		cpu.PC++
 	case 0xD6: // SUB A, u8
 		cpu.SubU8(cpu.ROM[cpu.PC+1])
-		cpu.PC += 2
-	case 0xE6: // AND A, u8
-		cpu.AndU8(cpu.ROM[cpu.PC+1])
-		cpu.PC += 2
-	case 0xF6: // OR A, u8
-		cpu.OrU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0xDE: // SBC A, u8
 		cpu.SbcU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0xE1: // POP HL
+		cpu.PopU16(RegH, RegL)
+		cpu.PC++
+	case 0xE5: // PUSH HL
+		cpu.PushU16(RegH, RegL)
+		cpu.PC++
+	case 0xE6: // AND A, u8
+		cpu.AndU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
 	case 0xEE: // XOR A, u8
 		cpu.XorU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0xF1: // POP AF
+		cpu.PopU16(RegA, RegF)
+		cpu.PC++
+	case 0xF5: // PUSH AF
+		cpu.PushU16(RegA, RegF)
+		cpu.PC++
+	case 0xF6: // OR A, u8
+		cpu.OrU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	case 0xFE: // CP A, u8
 		cpu.CpU8(cpu.ROM[cpu.PC+1])
@@ -596,6 +654,11 @@ func (cpu *CPU) GetBC() uint16 {
 func (cpu *CPU) GetDE() uint16 {
 	de := uint16(cpu.Registers[RegD])<<8 | uint16(cpu.Registers[RegE])
 	return de
+}
+
+func (cpu *CPU) GetAF() uint16 {
+	af := uint16(cpu.Registers[RegA])<<8 | uint16(cpu.Registers[RegF])
+	return af
 }
 
 func (cpu *CPU) LoadMemoryImmediate(address uint16, value uint8) {
@@ -828,4 +891,27 @@ func (cpu *CPU) OrU8(value uint8) {
 	cpu.Flags.SetN(false)
 	cpu.Flags.SetH(false)
 	cpu.Flags.SetC(false)
+}
+
+func (cpu *CPU) PushU16(high, low uint8) {
+	log.Printf("Pushing %d%02X to stack at %04X\n", cpu.Registers[high], cpu.Registers[low], cpu.SP-2)
+	cpu.SP--
+	cpu.Memory[cpu.SP] = cpu.Registers[high]
+	cpu.SP--
+	cpu.Memory[cpu.SP] = cpu.Registers[low]
+}
+
+func (cpu *CPU) PopU16(high, low uint8) {
+	// Read low byte first
+	cpu.Registers[low] = cpu.Memory[cpu.SP]
+	cpu.SP++
+
+	// Read high byte
+	cpu.Registers[high] = cpu.Memory[cpu.SP]
+	cpu.SP++
+
+	// If we're popping into AF, we need to handle the flags register specially
+	if low == RegF {
+		cpu.Flags.SetValue(cpu.Registers[low]) // Use the value we just popped into F
+	}
 }

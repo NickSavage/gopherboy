@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"testing"
 )
 
@@ -25,6 +26,7 @@ func RunTestProgram(t *testing.T, tc TestProgram) {
 	// Execute the program
 	for i := 0; i < len(tc.program); i++ {
 		cpu.ParseNextOpcode()
+		log.Printf("a: %d\n", cpu.Registers[RegA])
 	}
 
 	// Validate the final state
@@ -2256,6 +2258,189 @@ func TestOROpcodes(t *testing.T) {
 				}
 				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
 					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
+func TestPushPopOpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "PUSH/POP BC",
+			program: []uint8{
+				0x01, 0x34, 0x12, // LD BC,0x1234
+				0xC5,             // PUSH BC
+				0x01, 0x00, 0x00, // LD BC,0x0000
+				0xC1, // POP BC
+			},
+			setup: func(cpu *CPU) {
+				cpu.SP = 0xFFFE // Initialize stack pointer
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 8 {
+					t.Errorf("Expected PC to be 8, got %d", cpu.PC)
+				}
+				bc := uint16(cpu.Registers[RegB])<<8 | uint16(cpu.Registers[RegC])
+				if bc != 0x1234 {
+					t.Errorf("Expected BC to be 0x1234, got %04X", bc)
+				}
+				if cpu.SP != 0xFFFE {
+					t.Errorf("Expected SP to be 0xFFFE, got %04X", cpu.SP)
+				}
+			},
+		},
+		{
+			name: "PUSH/POP DE",
+			program: []uint8{
+				0x11, 0x78, 0x56, // LD DE,0x5678
+				0xD5,             // PUSH DE
+				0x11, 0x00, 0x00, // LD DE,0x0000
+				0xD1, // POP DE
+			},
+			setup: func(cpu *CPU) {
+				cpu.SP = 0xFFFE
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 8 {
+					t.Errorf("Expected PC to be 8, got %d", cpu.PC)
+				}
+				de := uint16(cpu.Registers[RegD])<<8 | uint16(cpu.Registers[RegE])
+				if de != 0x5678 {
+					t.Errorf("Expected DE to be 0x5678, got %04X", de)
+				}
+				if cpu.SP != 0xFFFE {
+					t.Errorf("Expected SP to be 0xFFFE, got %04X", cpu.SP)
+				}
+			},
+		},
+		{
+			name: "PUSH/POP HL",
+			program: []uint8{
+				0x21, 0xBC, 0x9A, // LD HL,0x9ABC
+				0xE5,             // PUSH HL
+				0x21, 0x00, 0x00, // LD HL,0x0000
+				0xE1, // POP HL
+			},
+			setup: func(cpu *CPU) {
+				cpu.SP = 0xFFFE
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 8 {
+					t.Errorf("Expected PC to be 8, got %d", cpu.PC)
+				}
+				hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+				if hl != 0x9ABC {
+					t.Errorf("Expected HL to be 0x9ABC, got %04X", hl)
+				}
+				if cpu.SP != 0xFFFE {
+					t.Errorf("Expected SP to be 0xFFFE, got %04X", cpu.SP)
+				}
+			},
+		},
+		{
+			name: "PUSH/POP AF",
+			program: []uint8{
+				0x3E, 0xF0, // LD A,0xF0
+				0x37,       // SCF (Set Carry Flag)
+				0x27,       // DAA (Set H Flag)
+				0xF5,       // PUSH AF
+				0x3E, 0x00, // LD A,0x00
+				0x3F, // CCF (Clear Carry Flag)
+				0xF1, // POP AF
+			},
+			setup: func(cpu *CPU) {
+				cpu.SP = 0xFFFE
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 9 {
+					t.Errorf("Expected PC to be 9, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x50 {
+					t.Errorf("Expected A to be 0x50, got %02X", cpu.Registers[RegA])
+				}
+				if !cpu.Flags.C() {
+					t.Error("Expected Carry flag to be set")
+				}
+				if cpu.SP != 0xFFFE {
+					t.Errorf("Expected SP to be 0xFFFE, got %04X", cpu.SP)
+				}
+			},
+		},
+		{
+			name: "Multiple PUSH/POP sequence",
+			program: []uint8{
+				0x01, 0x34, 0x12, // LD BC,0x1234
+				0x11, 0x78, 0x56, // LD DE,0x5678
+				0x21, 0xBC, 0x9A, // LD HL,0x9ABC
+				0xC5,             // PUSH BC
+				0xD5,             // PUSH DE
+				0xE5,             // PUSH HL
+				0x01, 0x00, 0x00, // LD BC,0x0000
+				0x11, 0x00, 0x00, // LD DE,0x0000
+				0x21, 0x00, 0x00, // LD HL,0x0000
+				0xE1, // POP HL
+				0xD1, // POP DE
+				0xC1, // POP BC
+			},
+			setup: func(cpu *CPU) {
+				cpu.SP = 0xFFFE
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 24 {
+					t.Errorf("Expected PC to be 24, got %d", cpu.PC)
+				}
+				bc := uint16(cpu.Registers[RegB])<<8 | uint16(cpu.Registers[RegC])
+				if bc != 0x1234 {
+					t.Errorf("Expected BC to be 0x1234, got %04X", bc)
+				}
+				de := uint16(cpu.Registers[RegD])<<8 | uint16(cpu.Registers[RegE])
+				if de != 0x5678 {
+					t.Errorf("Expected DE to be 0x5678, got %04X", de)
+				}
+				hl := uint16(cpu.Registers[RegH])<<8 | uint16(cpu.Registers[RegL])
+				if hl != 0x9ABC {
+					t.Errorf("Expected HL to be 0x9ABC, got %04X", hl)
+				}
+				if cpu.SP != 0xFFFE {
+					t.Errorf("Expected SP to be 0xFFFE, got %04X", cpu.SP)
+				}
+			},
+		},
+		{
+			name: "Stack Pointer Manipulation",
+			program: []uint8{
+				0x01, 0x34, 0x12, // LD BC,0x1234
+				0x11, 0x78, 0x56, // LD DE,0x5678
+				0xC5, // PUSH BC
+				0xD5, // PUSH DE
+				0xD1, // POP DE
+				0xC1, // POP BC
+			},
+			setup: func(cpu *CPU) {
+				cpu.SP = 0xFFFE
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 10 {
+					t.Errorf("Expected PC to be 10, got %d", cpu.PC)
+				}
+				// Check if stack pointer returned to original position
+				if cpu.SP != 0xFFFE {
+					t.Errorf("Expected SP to be 0xFFFE, got %04X", cpu.SP)
+				}
+				// Verify memory contents were correctly written and read
+				if cpu.Memory[0xFFFC] != 0x34 || cpu.Memory[0xFFFD] != 0x12 {
+					t.Errorf("Expected memory at 0xFFFC-0xFFFD to be 0x1234, got %02X%02X",
+						cpu.Memory[0xFFFD], cpu.Memory[0xFFFC])
+				}
+				if cpu.Memory[0xFFFA] != 0x78 || cpu.Memory[0xFFFB] != 0x56 {
+					t.Errorf("Expected memory at 0xFFFA-0xFFFB to be 0x5678, got %02X%02X",
+						cpu.Memory[0xFFFB], cpu.Memory[0xFFFA])
 				}
 			},
 		},
