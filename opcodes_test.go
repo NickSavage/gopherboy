@@ -1287,3 +1287,145 @@ func TestAddOpcodes(t *testing.T) {
 		})
 	}
 }
+
+func TestADCOpcodes(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "ADC A,B - Basic addition with no carry",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x06, 0x24, // LD B,0x24
+				0x88, // ADC A,B
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetValue(0) // Clear carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x66 {
+					t.Errorf("Expected A to be 0x66, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADC A,B - Addition with carry set",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0x06, 0x24, // LD B,0x24
+				0x88, // ADC A,B
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(true) // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 5, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x67 { // 0x42 + 0x24 + 1
+					t.Errorf("Expected A to be 0x67, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADC A,C - Carry and half-carry generation",
+			program: []uint8{
+				0x3E, 0xFF, // LD A,0xFF
+				0x0E, 0x01, // LD C,0x01
+				0x89, // ADC A,C
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(true) // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 5 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x01 { // 0xFF + 0x01 + 1 = 0x101 (overflow)
+					t.Errorf("Expected A to be 0x01, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || !cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected H and C flags to be set, Z and N to be reset")
+				}
+			},
+		},
+		{
+			name: "ADC A,(HL) - Memory operation",
+			program: []uint8{
+				0x21, 0x00, 0x80, // LD HL,0x8000
+				0x3E, 0x42, // LD A,0x42
+				0x8E, // ADC A,(HL)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Memory[0x8000] = 0x24 // Set value at (HL)
+				cpu.Flags.SetC(true)      // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 6 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x67 { // 0x42 + 0x24 + 1
+					t.Errorf("Expected A to be 0x67, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADC A,u8 - Immediate value",
+			program: []uint8{
+				0x3E, 0x42, // LD A,0x42
+				0xCE, 0x24, // ADC A,0x24
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(true) // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 4 {
+					t.Errorf("Expected PC to be 4, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x67 { // 0x42 + 0x24 + 1
+					t.Errorf("Expected A to be 0x67, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
+					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+		{
+			name: "ADC A,A - Add A to itself with carry",
+			program: []uint8{
+				0x3E, 0x80, // LD A,0x80
+				0x8F, // ADC A,A (was incorrectly using 0x87 which is ADD A,A)
+			},
+			setup: func(cpu *CPU) {
+				cpu.Flags.SetC(true) // Set carry flag
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 3 {
+					t.Errorf("Expected PC to be 3, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x01 { // 0x80 + 0x80 + 1 = 0x101 (overflow)
+					t.Errorf("Expected A to be 0x01, got %02X", cpu.Registers[RegA])
+				}
+				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || !cpu.Flags.C() {
+					t.Error("Expected C flag to be set, others reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}

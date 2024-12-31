@@ -388,8 +388,35 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x87: // ADD A, A
 		cpu.AddU8Register(RegA)
 		cpu.PC++
+	case 0x88: // ADC A, B
+		cpu.AdcU8Register(RegB)
+		cpu.PC++
+	case 0x89: // ADC A, C
+		cpu.AdcU8Register(RegC)
+		cpu.PC++
+	case 0x8A: // ADC A, D
+		cpu.AdcU8Register(RegD)
+		cpu.PC++
+	case 0x8B: // ADC A, E
+		cpu.AdcU8Register(RegE)
+		cpu.PC++
+	case 0x8C: // ADC A, H
+		cpu.AdcU8Register(RegH)
+		cpu.PC++
+	case 0x8D: // ADC A, L
+		cpu.AdcU8Register(RegL)
+		cpu.PC++
+	case 0x8E: // ADC A, (HL)
+		cpu.AdcU8(cpu.Memory[cpu.GetHL()])
+		cpu.PC++
+	case 0x8F: // ADC A, A
+		cpu.AdcU8Register(RegA)
+		cpu.PC++
 	case 0xC6: // ADD A, u8
 		cpu.AddU8(cpu.ROM[cpu.PC+1])
+		cpu.PC += 2
+	case 0xCE: // ADC A, u8
+		cpu.AdcU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
 	}
 
@@ -509,4 +536,29 @@ func (cpu *CPU) AddU8(value uint8) {
 	cpu.Flags.SetC(result > 0xFF)
 
 	cpu.Registers[RegA] = finalResult
+}
+
+func (cpu *CPU) AdcU8(value uint8) {
+	a := cpu.Registers[RegA]
+	b := value
+	carry := uint8(0)
+	if cpu.Flags.C() {
+		carry = 1
+	}
+
+	result := uint16(a) + uint16(b) + uint16(carry)
+
+	// Half carry needs to account for carry flag too
+	cpu.Flags.SetH((a&0x0F)+(b&0x0F)+carry > 0x0F)
+	cpu.Flags.SetC(result > 0xFF)
+	cpu.Flags.SetN(false)
+
+	finalResult := uint8(result & 0xFF)
+	cpu.Registers[RegA] = finalResult
+	cpu.Flags.SetZ(finalResult == 0)
+
+}
+
+func (cpu *CPU) AdcU8Register(reg uint8) {
+	cpu.AdcU8(cpu.Registers[reg])
 }
