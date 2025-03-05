@@ -55,6 +55,16 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x0E: // LD C, u8
 		cpu.LoadImmediate(RegC, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x0F: // RRCA
+		cpu.Registers[RegA] = (cpu.Registers[RegA] >> 1) | (cpu.Registers[RegA] << 7)
+		cpu.Flags.SetC((cpu.Registers[RegA] & 0x01) != 0)
+		cpu.Flags.SetZ(false)
+		cpu.Flags.SetN(false)
+		cpu.Flags.SetH(false)
+		cpu.PC += 1
+	case 0x10: // STOP
+		cpu.Halt()
+		cpu.PC += 1
 	case 0x11: // LD DE, u16
 		cpu.Registers[RegD] = cpu.ROM[cpu.PC+2]
 		cpu.Registers[RegE] = cpu.ROM[cpu.PC+1]
@@ -92,6 +102,25 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x1E: // LD E, u8
 		cpu.LoadImmediate(RegE, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x1F: // RLA
+		carryBit := uint8(0)
+		if cpu.Flags.C() {
+			carryBit = 1
+		}
+		cpu.Registers[RegA] = (cpu.Registers[RegA] << 1) | carryBit
+		cpu.Flags.SetC((cpu.Registers[RegA] & 0x80) != 0)
+		cpu.Flags.SetZ(false)
+		cpu.Flags.SetN(false)
+		cpu.Flags.SetH(false)
+		cpu.PC += 1
+	case 0x20: // JR NZ, i8
+		if !cpu.Flags.Z() {
+			offset := int8(cpu.ROM[cpu.PC+1]) // Treat as signed byte
+			cpu.PC += 1                       // Move past opcode and offset
+			cpu.PC += uint16(offset)          // Add the offset
+		} else {
+			cpu.PC += 2 // Skip the instruction without jumping
+		}
 	case 0x21: // LD HL, u16
 		cpu.Registers[RegH] = cpu.ROM[cpu.PC+2]
 		cpu.Registers[RegL] = cpu.ROM[cpu.PC+1]

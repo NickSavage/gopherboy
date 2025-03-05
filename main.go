@@ -9,6 +9,7 @@ type CPU struct {
 	SP        uint16
 	IME       uint16
 	Flags     *Flags
+	MaxCycles int // for testing
 
 	Memory []uint8
 	ROM    []uint8

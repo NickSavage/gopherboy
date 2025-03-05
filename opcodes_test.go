@@ -24,6 +24,9 @@ func RunTestProgram(t *testing.T, tc TestProgram) {
 
 	// Execute the program
 	for i := 0; i < len(tc.program); i++ {
+		if cpu.MaxCycles > 0 && i >= cpu.MaxCycles {
+			break
+		}
 		cpu.ParseNextOpcode()
 	}
 
@@ -2256,6 +2259,52 @@ func TestOROpcodes(t *testing.T) {
 				}
 				if cpu.Flags.Z() || cpu.Flags.N() || cpu.Flags.H() || cpu.Flags.C() {
 					t.Error("Expected all flags to be reset")
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			RunTestProgram(t, tc)
+		})
+	}
+}
+
+func TestJRNZInstruction(t *testing.T) {
+	testCases := []TestProgram{
+		{
+			name: "JR NZ - Jump taken (positive offset)",
+			program: []uint8{
+				0x3E, 0x01, // LD A, 0x01
+				0xB7,       // OR A, A (to reset Z flag)
+				0x20, 0x03, // JR NZ, 3
+				0x3E, 0xFF, // LD A, 0xFF (skipped)
+				0x3E, 0x42, // LD A, 0x42
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 9 {
+					t.Errorf("Expected PC to be 8, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x42 {
+					t.Errorf("Expected A to be 0x42, got %02X", cpu.Registers[RegA])
+				}
+			},
+		},
+		{
+			name: "JR NZ - Jump not taken",
+			program: []uint8{
+				0x3E, 0x00, // LD A, 0x00
+				0xB7,       // OR A, A (to set Z flag)
+				0x20, 0x03, // JR NZ, 3 (not taken)
+				0x3E, 0x42, // LD A, 0x42
+			},
+			validate: func(t *testing.T, cpu *CPU) {
+				if cpu.PC != 7 {
+					t.Errorf("Expected PC to be 6, got %d", cpu.PC)
+				}
+				if cpu.Registers[RegA] != 0x42 {
+					t.Errorf("Expected A to be 0x42, got %02X", cpu.Registers[RegA])
 				}
 			},
 		},
