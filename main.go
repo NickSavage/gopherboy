@@ -18,6 +18,7 @@ type CPU struct {
 
 type Flags struct {
 	value byte
+	CPU   *CPU
 }
 
 const (
@@ -47,6 +48,7 @@ func (f *Flags) setBit(bit byte, value bool) {
 	} else {
 		f.value &= ^bit
 	}
+	f.CPU.Registers[RegF] = f.value
 }
 
 // Get the raw byte value
@@ -57,6 +59,7 @@ func (f *Flags) Value() byte {
 // Set the raw byte value
 func (f *Flags) SetValue(value byte) {
 	f.value = value & 0xF0 // Only upper 4 bits are used
+	f.CPU.Registers[RegF] = f.value
 }
 
 // 8-bit register constants
@@ -90,6 +93,7 @@ func InitCPU() *CPU {
 		SP:        0xFFFE,
 		Flags:     &Flags{},
 	}
+	result.Flags.CPU = &result
 	return &result
 }
 
