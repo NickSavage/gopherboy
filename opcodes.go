@@ -184,6 +184,19 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x2E: // LD L, u8
 		cpu.LoadImmediate(RegL, cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0x2F: // CPL
+		cpu.Registers[RegA] = ^cpu.Registers[RegA]
+		cpu.Flags.SetN(true)
+		cpu.Flags.SetH(true)
+		cpu.PC += 1
+	case 0x30: // JR NC, i8
+		if !cpu.Flags.C() {
+			offset := int8(cpu.ROM[cpu.PC+1]) // Treat as signed byte
+			cpu.PC += 1                       // Move past opcode and offset
+			cpu.PC += uint16(offset)          // Add the offset
+		} else {
+			cpu.PC += 2 // Skip the instruction without jumping
+		}
 	case 0x31: // LD SP, u16
 		value := uint16(cpu.ROM[cpu.PC+1]) | (uint16(cpu.ROM[cpu.PC+2]) << 8)
 		cpu.SP = value
@@ -619,27 +632,79 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0xBF: // CP A, A
 		cpu.CpU8Register(RegA)
 		cpu.PC++
+	case 0xC0: // RET NZ
+		if !cpu.Flags.Z() {
+			low := cpu.Memory[cpu.SP]
+			cpu.SP++
+			high := cpu.Memory[cpu.SP]
+			cpu.SP++
+			cpu.PC = uint16(high)<<8 | uint16(low)
+		} else {
+			cpu.PC++
+		}
 	case 0xC1: // POP BC
 		cpu.PopU16(RegB, RegC)
 		cpu.PC++
+	case 0xC2: // JP NZ, u16
+		low := cpu.ROM[cpu.PC+1]
+		high := cpu.ROM[cpu.PC+2]
+		cpu.PC += 3
+		if !cpu.Flags.Z() {
+			cpu.PC = uint16(high)<<8 | uint16(low)
+		}
+	case 0xC3: // JP u16
+		low := cpu.ROM[cpu.PC+1]
+		high := cpu.ROM[cpu.PC+2]
+		cpu.PC = uint16(high)<<8 | uint16(low)
 	case 0xC5: // PUSH BC
 		cpu.PushU16(RegB, RegC)
 		cpu.PC++
 	case 0xC6: // ADD A, u8
 		cpu.AddU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0xCA: // JP Z, u16
+		low := cpu.ROM[cpu.PC+1]
+		high := cpu.ROM[cpu.PC+2]
+		cpu.PC += 3
+		if cpu.Flags.Z() {
+			cpu.PC = uint16(high)<<8 | uint16(low)
+		}
 	case 0xCE: // ADC A, u8
 		cpu.AdcU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0xD0: // RET NC
+		if !cpu.Flags.C() {
+			low := cpu.Memory[cpu.SP]
+			cpu.SP++
+			high := cpu.Memory[cpu.SP]
+			cpu.SP++
+			cpu.PC = uint16(high)<<8 | uint16(low)
+		} else {
+			cpu.PC++
+		}
 	case 0xD1: // POP DE
 		cpu.PopU16(RegD, RegE)
 		cpu.PC++
+	case 0xD2: // JP NC, u16
+		low := cpu.ROM[cpu.PC+1]
+		high := cpu.ROM[cpu.PC+2]
+		cpu.PC += 3
+		if !cpu.Flags.C() {
+			cpu.PC = uint16(high)<<8 | uint16(low)
+		}
 	case 0xD5: // PUSH DE
 		cpu.PushU16(RegD, RegE)
 		cpu.PC++
 	case 0xD6: // SUB A, u8
 		cpu.SubU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0xDA: // JP C, u16
+		low := cpu.ROM[cpu.PC+1]
+		high := cpu.ROM[cpu.PC+2]
+		cpu.PC += 3
+		if cpu.Flags.C() {
+			cpu.PC = uint16(high)<<8 | uint16(low)
+		}
 	case 0xDE: // SBC A, u8
 		cpu.SbcU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
@@ -652,6 +717,8 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0xE6: // AND A, u8
 		cpu.AndU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0xE9: // JP (HL)
+		cpu.PC = cpu.GetHL()
 	case 0xEE: // XOR A, u8
 		cpu.XorU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
