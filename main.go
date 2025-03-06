@@ -138,16 +138,40 @@ func RunProgram(cpu *CPU, maxCycles int) {
 		if i%1000 == 0 {
 			log.Printf("Executed %d instructions, PC: 0x%04X", i, cpu.PC)
 		}
-
 	}
 
 	log.Printf("Program execution stopped. PC: 0x%04X, Halted: %v", cpu.PC, cpu.Halted)
+
+	// Dump memory contents to file
+	if err := DumpMemoryToFile(cpu, "memory_dump.bin"); err != nil {
+		log.Printf("Failed to dump memory: %v", err)
+	} else {
+		log.Printf("Memory dumped to memory_dump.hex")
+	}
+}
+
+// DumpMemoryToFile writes the CPU memory contents to a binary file
+func DumpMemoryToFile(cpu *CPU, filename string) error {
+	// Open file for writing in binary mode
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %v", err)
+	}
+	defer file.Close()
+
+	// Write the entire memory buffer directly to the file
+	_, err = file.Write(cpu.Memory)
+	if err != nil {
+		return fmt.Errorf("failed to write memory dump: %v", err)
+	}
+
+	return nil
 }
 
 func main() {
 	// Parse command-line flags
 	romFile := flag.String("rom", "", "Path to Game Boy ROM file")
-	maxCycles := flag.Int("cycles", 1000000, "Maximum number of CPU cycles to execute")
+	maxCycles := flag.Int("cycles", 2328, "Maximum number of CPU cycles to execute")
 	debug := flag.Bool("debug", false, "Enable debug output")
 
 	flag.Parse()
