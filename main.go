@@ -1,6 +1,11 @@
 package main
 
-import "log"
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+)
 
 type CPU struct {
 	Registers []uint8
@@ -92,11 +97,80 @@ func InitCPU() *CPU {
 		Halted:    false,
 		SP:        0xFFFE,
 		Flags:     &Flags{},
+		PC:        0x0150,
 	}
 	result.Flags.CPU = &result
+	result.Memory[0xFF43] = 0
+	result.Memory[0xFF44] = 144
 	return &result
 }
 
+// LoadROM loads a ROM file into the CPU's memory
+func LoadROM(cpu *CPU, romFilePath string) error {
+	romData, err := os.ReadFile(romFilePath)
+	if err != nil {
+		return fmt.Errorf("error reading ROM file: %v", err)
+	}
+
+	// Make sure we don't overflow the ROM buffer
+	if len(romData) > len(cpu.ROM) {
+		return fmt.Errorf("ROM file too large: %d bytes (max %d)", len(romData), len(cpu.ROM))
+	}
+
+	// Copy ROM data to CPU's memory
+	copy(cpu.ROM, romData)
+
+	// Also copy to memory starting at address 0
+	copy(cpu.Memory, romData)
+
+	return nil
+}
+
+// RunProgram executes the program loaded in the CPU's memory
+func RunProgram(cpu *CPU, maxCycles int) {
+	for i := 0; i < maxCycles && !cpu.Halted; i++ {
+		cpu.ParseNextOpcode()
+		// Optional: Add delay or debug output here
+		if i%1000 == 0 {
+			log.Printf("Executed %d instructions, PC: 0x%04X", i, cpu.PC)
+		}
+
+	}
+
+	log.Printf("Program execution stopped. PC: 0x%04X, Halted: %v", cpu.PC, cpu.Halted)
+}
+
 func main() {
-	log.Printf("hello world")
+	// Parse command-line flags
+	romFile := flag.String("rom", "", "Path to Game Boy ROM file")
+	maxCycles := flag.Int("cycles", 1000000, "Maximum number of CPU cycles to execute")
+	debug := flag.Bool("debug", false, "Enable debug output")
+
+	flag.Parse()
+
+	// Check if ROM file was provided
+	if *romFile == "" {
+		log.Fatal("No ROM file specified. Use -rom flag to specify a Game Boy ROM file.")
+	}
+
+	// Initialize CPU
+	cpu := InitCPU()
+
+	// Load ROM file
+	log.Printf("Loading ROM file: %s", *romFile)
+	if err := LoadROM(cpu, *romFile); err != nil {
+		log.Fatalf("Failed to load ROM: %v", err)
+	}
+
+	// Set debug level if needed
+	if *debug {
+		log.Printf("Debug mode enabled")
+		// You can add more detailed debug setup here
+	}
+
+	// Run the program
+	log.Printf("Starting program execution with max %d cycles", *maxCycles)
+	RunProgram(cpu, *maxCycles)
+
+	log.Printf("Emulation complete")
 }

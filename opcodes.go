@@ -1,11 +1,21 @@
 package main
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 func (cpu *CPU) ParseNextOpcode() {
 	next := cpu.ROM[cpu.PC]
-	log.Printf("Opcode: 0x%02X", next)
+	fmt.Printf("Opcode: 0x%02X PC: 0x%04X SP: 0x%04X A: 0x%02X B: 0x%02X C: 0x%02X D: 0x%02X E: 0x%02X H: 0x%02X L: 0x%02X Flags: Z:%t N:%t H:%t C:%t\n",
+		next, cpu.PC, cpu.SP,
+		cpu.Registers[RegA], cpu.Registers[RegB], cpu.Registers[RegC],
+		cpu.Registers[RegD], cpu.Registers[RegE], cpu.Registers[RegH], cpu.Registers[RegL],
+		cpu.Flags.Z(), cpu.Flags.N(), cpu.Flags.H(), cpu.Flags.C())
+
 	switch next {
+	case 0x00: // NOP
+		cpu.PC++
 	case 0x01: // LD BC, u16
 		cpu.Registers[RegB] = cpu.ROM[cpu.PC+2]
 		cpu.Registers[RegC] = cpu.ROM[cpu.PC+1]
@@ -115,8 +125,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 	case 0x20: // JR NZ, i8
 		if !cpu.Flags.Z() {
+			log.Printf("triggering jump")
 			offset := int8(cpu.ROM[cpu.PC+1]) // Treat as signed byte
-			cpu.PC += 1                       // Move past opcode and offset
+			cpu.PC += 2                       // Move past opcode and offset
 			cpu.PC += uint16(offset)          // Add the offset
 		} else {
 			cpu.PC += 2 // Skip the instruction without jumping
@@ -722,8 +733,15 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0xEE: // XOR A, u8
 		cpu.XorU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0xF0: // LD A, (0xFF00 + u8)
+		n := cpu.ROM[cpu.PC+1]
+		cpu.Registers[RegA] = cpu.Memory[0xFF00+uint16(n)]
+		cpu.PC += 2
 	case 0xF1: // POP AF
 		cpu.PopU16(RegA, RegF)
+		cpu.PC++
+	case 0xF3: // DI
+		cpu.IME = 0
 		cpu.PC++
 	case 0xF5: // PUSH AF
 		cpu.PushU16(RegA, RegF)
@@ -731,9 +749,15 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0xF6: // OR A, u8
 		cpu.OrU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	case 0xFB: // EI
+		cpu.IME = 1
+		cpu.PC++
 	case 0xFE: // CP A, u8
 		cpu.CpU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2
+	default:
+		log.Fatalf("Unknown opcode: 0x%02X", cpu.ROM[cpu.PC])
+		cpu.PC++
 	}
 
 }
@@ -813,6 +837,7 @@ func (cpu *CPU) AddU16Register(high uint8, low uint8, value uint16) {
 	cpu.Registers[high] = uint8(result >> 8)
 	cpu.Registers[low] = uint8(result & 0xFF)
 
+	// N flag is always reset
 	cpu.Flags.SetN(false)
 }
 
