@@ -8,13 +8,16 @@ import (
 )
 
 type CPU struct {
-	Registers []uint8
-	Clock     uint8
-	PC        uint16
-	SP        uint16
-	IME       uint16
-	Flags     *Flags
-	MaxCycles int // for testing
+	Registers     []uint8
+	Clock         uint8
+	PC            uint16
+	SP            uint16
+	IME           uint16
+	Flags         *Flags
+	MaxCycles     int // for testing
+	DMAActive     bool
+	DMACycles     int
+	DMASourceBase uint16
 
 	Memory []uint8
 	ROM    []uint8
@@ -101,8 +104,47 @@ func InitCPU() *CPU {
 	}
 	result.Flags.CPU = &result
 	result.Memory[0xFF43] = 0
-	result.Memory[0xFF44] = 144
+	result.Memory[0xFF44] = 0xFF
 	return &result
+}
+
+func (cpu *CPU) CheckError() error {
+	// Check if registers B through L all contain 0x42
+	if cpu.Registers[RegB] == 0x42 &&
+		cpu.Registers[RegC] == 0x42 &&
+		cpu.Registers[RegD] == 0x42 &&
+		cpu.Registers[RegE] == 0x42 &&
+		cpu.Registers[RegH] == 0x42 &&
+		cpu.Registers[RegL] == 0x42 {
+
+		// Check if current opcode is LD B, B (0x40) or we're in an infinite JR loop (0x18 0x00)
+		opcode := cpu.Memory[cpu.PC]
+		nextByte := cpu.Memory[cpu.PC+1]
+
+		// Check for the infinite JR loop (JR 0 - jump to self)
+		if opcode == 0x18 && nextByte == 0x00 {
+			return fmt.Errorf("test failure detected: infinite JR loop after setting registers to 0x42")
+		}
+
+		// Check for LD B, B opcode
+		if opcode == 0x40 {
+			// Check serial port for evidence of sending 0x42 six times
+			// In a real implementation, you would need to track serial port usage
+			// This is a simplified version that just checks if a specific memory pattern exists
+
+			// For GameBoy, 0xFF01 is the Serial Transfer Data Register (SB)
+			// 0xFF02 is the Serial Transfer Control Register (SC)
+			// We can check if these have been used to send 0x42 repeatedly
+
+			// Since we don't have a proper way to track the 6 serial transfers in this code,
+			// we'll just check if the current SB register contains 0x42
+			if cpu.Memory[0xFF01] == 0x42 {
+				return fmt.Errorf("test failure detected: registers set to 0x42 and serial port used with 0x42")
+			}
+		}
+	}
+
+	return nil // No error detected
 }
 
 // LoadROM loads a ROM file into the CPU's memory
@@ -130,13 +172,32 @@ func LoadROM(cpu *CPU, romFilePath string) error {
 func RunProgram(cpu *CPU, maxCycles int) {
 	for i := 0; i < maxCycles && !cpu.Halted; i++ {
 		cpu.ParseNextOpcode()
-		cpu.Memory[0xFF44]++
+
+		if cpu.DMAActive {
+			if cpu.DMACycles > 0 {
+				cpu.Memory[0xFE00+uint16(160-cpu.DMACycles)] = cpu.Memory[cpu.DMASourceBase+uint16(160-cpu.DMACycles)]
+				cpu.DMACycles--
+			} else {
+				cpu.DMAActive = false
+			}
+		}
+
+		// super cludge, just want to make sure there is a little delay
+		// otherwise it loops at a constant rate
+		if i%100 != 0 {
+			cpu.Memory[0xFF44]++
+		}
 		if cpu.Memory[0xFF44] == 154 {
 			cpu.Memory[0xFF44] = 0
 		}
 		// Optional: Add delay or debug output here
 		if i%1000 == 0 {
 			log.Printf("Executed %d instructions, PC: 0x%04X", i, cpu.PC)
+		}
+		err := cpu.CheckError()
+		if err != nil {
+			log.Printf("Test has failed")
+			break
 		}
 	}
 
@@ -171,7 +232,7 @@ func DumpMemoryToFile(cpu *CPU, filename string) error {
 func main() {
 	// Parse command-line flags
 	romFile := flag.String("rom", "", "Path to Game Boy ROM file")
-	maxCycles := flag.Int("cycles", 3000, "Maximum number of CPU cycles to execute")
+	maxCycles := flag.Int("cycles", 100000, "Maximum number of CPU cycles to execute")
 	debug := flag.Bool("debug", false, "Enable debug output")
 
 	flag.Parse()
