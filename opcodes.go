@@ -125,7 +125,6 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 	case 0x20: // JR NZ, i8
 		if !cpu.Flags.Z() {
-			log.Printf("triggering jump")
 			offset := int8(cpu.ROM[cpu.PC+1]) // Treat as signed byte
 			cpu.PC += 2                       // Move past opcode and offset
 			cpu.PC += uint16(offset)          // Add the offset
@@ -680,6 +679,15 @@ func (cpu *CPU) ParseNextOpcode() {
 		if cpu.Flags.Z() {
 			cpu.PC = uint16(high)<<8 | uint16(low)
 		}
+	case 0xCD: // CALL u16
+		cpu.SP--
+		cpu.Memory[cpu.SP] = uint8(cpu.PC >> 8)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = uint8(cpu.PC & 0xFF)
+		newPC := uint16(cpu.ROM[cpu.PC+2])<<8 | uint16(cpu.ROM[cpu.PC+1])
+		log.Printf("calling 0x%04X", newPC)
+		cpu.PC = newPC
+		cpu.PC += 3
 	case 0xCE: // ADC A, u8
 		cpu.AdcU8(cpu.ROM[cpu.PC+1])
 		cpu.PC += 2

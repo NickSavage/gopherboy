@@ -130,6 +130,10 @@ func LoadROM(cpu *CPU, romFilePath string) error {
 func RunProgram(cpu *CPU, maxCycles int) {
 	for i := 0; i < maxCycles && !cpu.Halted; i++ {
 		cpu.ParseNextOpcode()
+		cpu.Memory[0xFF44]++
+		if cpu.Memory[0xFF44] == 154 {
+			cpu.Memory[0xFF44] = 0
+		}
 		// Optional: Add delay or debug output here
 		if i%1000 == 0 {
 			log.Printf("Executed %d instructions, PC: 0x%04X", i, cpu.PC)
