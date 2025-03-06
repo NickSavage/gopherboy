@@ -171,7 +171,7 @@ func DumpMemoryToFile(cpu *CPU, filename string) error {
 func main() {
 	// Parse command-line flags
 	romFile := flag.String("rom", "", "Path to Game Boy ROM file")
-	maxCycles := flag.Int("cycles", 2328, "Maximum number of CPU cycles to execute")
+	maxCycles := flag.Int("cycles", 2400, "Maximum number of CPU cycles to execute")
 	debug := flag.Bool("debug", false, "Enable debug output")
 
 	flag.Parse()
