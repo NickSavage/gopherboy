@@ -5,6 +5,36 @@ import (
 	"log"
 )
 
+func (cpu *CPU) Bit(bit uint8, address uint16) {
+	value := cpu.Memory[address]
+	cpu.Flags.SetZ(value&(1<<bit) == 0)
+	cpu.Flags.SetN(false)
+	cpu.Flags.SetH(true)
+	cpu.PC++
+}
+
+func (cpu *CPU) ParseNextCBOpcode() {
+	next := cpu.Memory[cpu.PC]
+
+	fmt.Printf("CB Opcode: 0x%02X PC: 0x%04X SP: 0x%04X A: 0x%02X B: 0x%02X C: 0x%02X D: 0x%02X E: 0x%02X H: 0x%02X L: 0x%02X Flags: Z:%t N:%t H:%t C:%t\n",
+		next, cpu.PC, cpu.SP,
+		cpu.Registers[RegA], cpu.Registers[RegB], cpu.Registers[RegC],
+		cpu.Registers[RegD], cpu.Registers[RegE], cpu.Registers[RegH], cpu.Registers[RegL],
+		cpu.Flags.Z(), cpu.Flags.N(), cpu.Flags.H(), cpu.Flags.C())
+	switch next {
+	case 0x7E: // BIT 7, (HL)
+		cpu.Bit(7, cpu.GetHL())
+		cpu.PC++
+	case 0x6E: // BIT 6, (HL)
+		cpu.Bit(6, cpu.GetHL())
+		cpu.PC++
+	default:
+		log.Fatalf("Unknown CB opcode: 0x%02X", next)
+		cpu.PC++
+	}
+
+}
+
 func (cpu *CPU) ParseNextOpcode() {
 	next := cpu.Memory[cpu.PC]
 	fmt.Printf("Opcode: 0x%02X PC: 0x%04X SP: 0x%04X A: 0x%02X B: 0x%02X C: 0x%02X D: 0x%02X E: 0x%02X H: 0x%02X L: 0x%02X Flags: Z:%t N:%t H:%t C:%t\n",
@@ -136,9 +166,8 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x20: // JR NZ, i8
 		if !cpu.Flags.Z() {
 			offset := int8(cpu.Memory[cpu.PC+1]) // Treat as signed byte
-			log.Printf("JR NZ, i8: offset: %d", offset)
-			cpu.PC += 2              // Move past opcode and offset
-			cpu.PC += uint16(offset) // Add the offset
+			cpu.PC += 2                          // Move past opcode and offset
+			cpu.PC += uint16(offset)             // Add the offset
 		} else {
 			cpu.PC += 2 // Skip the instruction without jumping
 		}
@@ -245,6 +274,14 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.Flags.SetC(true)
 		cpu.Flags.SetN(false)
 		cpu.PC += 1
+	case 0x38: // JR C, i8
+		if cpu.Flags.C() {
+			offset := int8(cpu.Memory[cpu.PC+1]) // Treat as signed byte
+			cpu.PC += 2                          // Move past opcode and offset
+			cpu.PC += uint16(offset)             // Add the offset
+		} else {
+			cpu.PC += 2 // Skip the instruction without jumping
+		}
 	case 0x39: // ADD HL, SP
 		cpu.AddU16Register(RegH, RegL, cpu.SP)
 		cpu.PC += 1
@@ -694,6 +731,12 @@ func (cpu *CPU) ParseNextOpcode() {
 		} else {
 			cpu.PC++
 		}
+	case 0xC9: // RET
+		low := cpu.Memory[cpu.SP]
+		cpu.SP++
+		high := cpu.Memory[cpu.SP]
+		cpu.SP++
+		cpu.PC = uint16(high)<<8 | uint16(low)
 	case 0xCA: // JP Z, u16
 		low := cpu.Memory[cpu.PC+1]
 		high := cpu.Memory[cpu.PC+2]
@@ -701,6 +744,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		if cpu.Flags.Z() {
 			cpu.PC = uint16(high)<<8 | uint16(low)
 		}
+	case 0xCB: // CB prefix
+		cpu.PC++
+		cpu.ParseNextCBOpcode()
 	case 0xCD: // CALL u16
 		newPC := uint16(cpu.Memory[cpu.PC+2])<<8 | uint16(cpu.Memory[cpu.PC+1])
 		cpu.PC += 3
@@ -759,7 +805,6 @@ func (cpu *CPU) ParseNextOpcode() {
 		log.Printf("LD (0xFF00 + u8), A: address: 0x%04X", address)
 		if address == 0xFF46 {
 			for i := range 160 {
-				log.Printf("from: 0x%04X to: 0x%04X", uint16(cpu.Registers[RegA])<<8+uint16(i), 0xFE00+uint16(i))
 				cpu.Memory[0xFE00+uint16(i)] = cpu.Memory[uint16(cpu.Registers[RegA])<<8+uint16(i)]
 			}
 		}
