@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 type CPU struct {
 	Registers     []uint8
-	Clock         uint8
+	Clock         uint16
 	PC            uint16
 	SP            uint16
 	IME           uint16
@@ -170,6 +172,10 @@ func LoadROM(cpu *CPU, romFilePath string) error {
 
 // RunProgram executes the program loaded in the CPU's memory
 func RunProgram(cpu *CPU, maxCycles int) {
+
+	rl.InitWindow(200, 200, "Gopherboy")
+	rl.SetTargetFPS(60)
+	rl.SetExitKey(0)
 	for i := 0; i < maxCycles && !cpu.Halted; i++ {
 		cpu.ParseNextOpcode()
 
@@ -199,6 +205,13 @@ func RunProgram(cpu *CPU, maxCycles int) {
 			log.Printf("Test has failed")
 			break
 		}
+		if cpu.Clock >= 456 {
+			rl.BeginDrawing()
+			rl.ClearBackground(rl.RayWhite)
+			rl.DrawText("Hello, World!", 10, 10, 20, rl.Black)
+			rl.EndDrawing()
+			cpu.Clock = cpu.Clock % 114
+		}
 	}
 
 	log.Printf("Program execution stopped. PC: 0x%04X, Halted: %v", cpu.PC, cpu.Halted)
@@ -209,6 +222,7 @@ func RunProgram(cpu *CPU, maxCycles int) {
 	} else {
 		log.Printf("Memory dumped to memory_dump.hex")
 	}
+	rl.CloseWindow()
 }
 
 // DumpMemoryToFile writes the CPU memory contents to a binary file
