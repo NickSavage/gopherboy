@@ -24,6 +24,9 @@ type CPU struct {
 	Memory []uint8
 	ROM    []uint8
 	Halted bool
+
+	Framebuffer [][]uint32
+	Texture     rl.Texture2D
 }
 
 type Flags struct {
@@ -96,7 +99,7 @@ const (
 
 func InitCPU() *CPU {
 	result := CPU{
-		Memory:    make([]uint8, 65535),
+		Memory:    make([]uint8, 65536),
 		ROM:       make([]uint8, 32768),
 		Registers: make([]uint8, 8),
 		Halted:    false,
@@ -170,14 +173,96 @@ func LoadROM(cpu *CPU, romFilePath string) error {
 	return nil
 }
 
+func (cpu *CPU) RequestVBlank() {
+	cpu.Memory[0xFF0F] |= 1 << 0
+}
+
+func (cpu *CPU) RequestStatInterrupt() {
+	cpu.Memory[0xFF0F] |= 1 << 1
+}
+
+func (cpu *CPU) HandleInterrupts() {
+	cpu.Halted = false
+	// vblank
+	// Check each interrupt type
+
+	ie := cpu.Memory[0xFFFF]
+
+	if_ := cpu.Memory[0xFF0F]
+
+	// VBlank
+	if (ie&0x01 != 0) && (if_&0x01 != 0) {
+		cpu.IME = 0 // Disable interrupts
+		// Clear the interrupt flag
+		cpu.Memory[0xFF0F] &= ^uint8(0x01)
+		// Push current PC to stack
+		// Jump to interrupt handler
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0040
+		return
+	}
+
+	// STAT
+	if (ie&0x02 != 0) && (if_&0x02 != 0) {
+		cpu.IME = 0
+		cpu.Memory[0xFF0F] &= ^uint8(0x02)
+
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0048
+		return
+	}
+}
+
 // RunProgram executes the program loaded in the CPU's memory
 func RunProgram(cpu *CPU, maxCycles int) {
 
-	rl.InitWindow(200, 200, "Gopherboy")
+	rl.InitWindow(160*4, 144*4, "Gopherboy")
 	rl.SetTargetFPS(60)
 	rl.SetExitKey(0)
-	for i := 0; i < maxCycles && !cpu.Halted; i++ {
-		cpu.ParseNextOpcode()
+	rl.SetTraceLogLevel(rl.LogNone)
+
+	sourceRect := rl.Rectangle{
+		X:      0,
+		Y:      0,
+		Width:  float32(160),
+		Height: float32(144),
+	}
+
+	// Destination rectangle (the full window)
+	destRect := rl.Rectangle{
+		X:      0,
+		Y:      0,
+		Width:  float32(160 * 4),
+		Height: float32(144 * 4),
+	}
+
+	// Origin (0,0) and rotation (0 degrees)
+	origin := rl.Vector2{X: 0, Y: 0}
+	rotation := float32(0)
+
+	framebuffer := rl.GenImageColor(160, 144, rl.Black)
+	texture := rl.LoadTextureFromImage(framebuffer)
+	cpu.Texture = texture
+	cpu.Framebuffer = make([][]uint32, 144)
+	for i := range cpu.Framebuffer {
+		cpu.Framebuffer[i] = make([]uint32, 160)
+	}
+
+	for i := 0; i < maxCycles; i++ {
+		cpu.HandleInterrupts()
+		if !cpu.Halted {
+			cpu.ParseNextOpcode()
+		}
 
 		if cpu.DMAActive {
 			if cpu.DMACycles > 0 {
@@ -193,6 +278,12 @@ func RunProgram(cpu *CPU, maxCycles int) {
 		if i%100 != 0 {
 			cpu.Memory[0xFF44]++
 		}
+		if cpu.Memory[0xFF44] == 144 {
+			cpu.RequestVBlank()
+		}
+		// if cpu.Memory[0xFF44] == cpu.Memory[0xFF45] {
+		// 	cpu.RequestStatInterrupt()
+		// }
 		if cpu.Memory[0xFF44] == 154 {
 			cpu.Memory[0xFF44] = 0
 		}
@@ -205,10 +296,14 @@ func RunProgram(cpu *CPU, maxCycles int) {
 			log.Printf("Test has failed")
 			break
 		}
+
+		cpu.RenderGameBoy()
 		if cpu.Clock >= 456 {
 			rl.BeginDrawing()
-			rl.ClearBackground(rl.RayWhite)
-			rl.DrawText("Hello, World!", 10, 10, 20, rl.Black)
+
+			// Draw the stretched texture
+			rl.DrawTexturePro(cpu.Texture, sourceRect, destRect, origin, rotation, rl.White)
+
 			rl.EndDrawing()
 			cpu.Clock = cpu.Clock % 114
 		}
@@ -222,6 +317,8 @@ func RunProgram(cpu *CPU, maxCycles int) {
 	} else {
 		log.Printf("Memory dumped to memory_dump.hex")
 	}
+
+	rl.UnloadTexture(texture)
 	rl.CloseWindow()
 }
 
@@ -246,7 +343,7 @@ func DumpMemoryToFile(cpu *CPU, filename string) error {
 func main() {
 	// Parse command-line flags
 	romFile := flag.String("rom", "", "Path to Game Boy ROM file")
-	maxCycles := flag.Int("cycles", 100000, "Maximum number of CPU cycles to execute")
+	maxCycles := flag.Int("cycles", 500000, "Maximum number of CPU cycles to execute")
 	debug := flag.Bool("debug", false, "Enable debug output")
 
 	flag.Parse()
