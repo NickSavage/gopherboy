@@ -262,12 +262,61 @@ func (cpu *CPU) ParseNextCBOpcode() {
 		value := cpu.ReadMemory(cpu.GetHL())
 		cpu.Bit(7, value)
 		cpu.Clock += 16
+	case 0x7F: // BIT 7, A
+		cpu.Bit(7, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xF0: // SET 6, B
+		cpu.Registers[RegB] = cpu.Registers[RegB] | 0x40
+		cpu.Clock += 8
+	case 0xF1: // SET 6, C
+		cpu.Registers[RegC] = cpu.Registers[RegC] | 0x40
+		cpu.Clock += 8
+	case 0xF2: // SET 6, D
+		cpu.Registers[RegD] = cpu.Registers[RegD] | 0x40
+		cpu.Clock += 8
+	case 0xF3: // SET 6, E
+		cpu.Registers[RegE] = cpu.Registers[RegE] | 0x40
+		cpu.Clock += 8
+	case 0xF4: // SET 6, H
+		cpu.Registers[RegH] = cpu.Registers[RegH] | 0x40
+		cpu.Clock += 8
+	case 0xF5: // SET 6, L
+		cpu.Registers[RegL] = cpu.Registers[RegL] | 0x40
+		cpu.Clock += 8
+	case 0xF6: // SET 6, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = value | 0x40
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xF7: // SET 6, A
+		cpu.Registers[RegA] = cpu.Registers[RegA] | 0x40
+		cpu.Clock += 8
+	case 0xF8: // SET 7, B
+		cpu.Registers[RegB] = cpu.Registers[RegB] | 0x80
+		cpu.Clock += 8
+	case 0xF9: // SET 7, C
+		cpu.Registers[RegC] = cpu.Registers[RegC] | 0x80
+		cpu.Clock += 8
+	case 0xFA: // SET 7, D
+		cpu.Registers[RegD] = cpu.Registers[RegD] | 0x80
+		cpu.Clock += 8
+	case 0xFB: // SET 7, E
+		cpu.Registers[RegE] = cpu.Registers[RegE] | 0x80
+		cpu.Clock += 8
+	case 0xFC: // SET 7, H
+		cpu.Registers[RegH] = cpu.Registers[RegH] | 0x80
+		cpu.Clock += 8
+	case 0xFD: // SET 7, L
+		cpu.Registers[RegL] = cpu.Registers[RegL] | 0x80
+		cpu.Clock += 8
 	case 0xFE: // SET 7, (HL)
 		value := cpu.ReadMemory(cpu.GetHL())
 		value = value | 0x80
 		cpu.Memory[cpu.GetHL()] = value
-		cpu.PC++
 		cpu.Clock += 16
+	case 0xFF: // SET 7, A
+		cpu.Registers[RegA] = cpu.Registers[RegA] | 0x80
+		cpu.Clock += 8
 	default:
 		log.Fatalf("Unknown CB opcode: 0x%02X", next)
 	}
@@ -581,6 +630,8 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.Memory[cpu.GetHL()] = value - 1
 		cpu.PC += 1
 		cpu.Clock += 12
+		cpu.Flags.SetZ(cpu.Memory[cpu.GetHL()] == 0)
+		cpu.Flags.SetN(true)
 	case 0x36: // LD (HL),u8
 		cpu.LoadMemoryImmediate(cpu.GetHL(), cpu.ReadMemory(cpu.PC+1))
 		cpu.PC += 2
@@ -621,6 +672,8 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.Registers[RegA]--
 		cpu.PC += 1
 		cpu.Clock += 4
+		cpu.Flags.SetZ(cpu.Registers[RegA] == 0)
+		cpu.Flags.SetN(true)
 	case 0x3E: // LD A, u8
 		cpu.LoadImmediate(RegA, cpu.ReadMemory(cpu.PC+1))
 		cpu.PC += 2
@@ -1323,6 +1376,7 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 2
 		cpu.Clock += 12
 		if address == 0xFF46 {
+			log.Printf("DMA active")
 			cpu.DMAActive = true
 			cpu.DMASourceBase = uint16(cpu.Registers[RegA]) << 8
 			cpu.DMACycles = 160
@@ -1333,7 +1387,7 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.Clock += 12
 	case 0xE2: // LD (C), A
 		cpu.Memory[0xFF00+uint16(cpu.Registers[RegC])] = cpu.Registers[RegA]
-		cpu.PC += 2
+		cpu.PC += 1
 		cpu.Clock += 8
 	case 0xE5: // PUSH HL
 		cpu.PushU16(RegH, RegL)
@@ -1376,6 +1430,12 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.OrU8(cpu.ReadMemory(cpu.PC + 1))
 		cpu.PC += 2
 		cpu.Clock += 8
+	case 0xFA: // LD A, (0xFF00 + C)
+		high := cpu.ReadMemory(cpu.PC + 1)
+		low := cpu.ReadMemory(cpu.PC + 2)
+		cpu.Registers[RegA] = cpu.ReadMemory(uint16(high)<<8 | uint16(low))
+		cpu.PC += 3
+		cpu.Clock += 16
 	case 0xFB: // EI
 		cpu.IME = 1
 		cpu.PC++

@@ -173,6 +173,26 @@ func LoadROM(cpu *CPU, romFilePath string) error {
 	return nil
 }
 
+func (cpu *CPU) Exit() {
+	rl.CloseWindow()
+
+	// Dump memory contents to file
+	if err := DumpMemoryToFile(cpu, "memory_dump.bin"); err != nil {
+		log.Printf("Failed to dump memory: %v", err)
+	} else {
+		log.Printf("Memory dumped to memory_dump.bin")
+	}
+	os.Exit(0)
+}
+
+func (cpu *CPU) HandleKeyboard() {
+	keys := rl.GetKeyPressed()
+	if keys == rl.KeyEscape {
+		cpu.Exit()
+
+	}
+}
+
 func (cpu *CPU) RequestVBlank() {
 	cpu.Memory[0xFF0F] |= 1 << 0
 }
@@ -259,6 +279,7 @@ func RunProgram(cpu *CPU, maxCycles int) {
 	}
 
 	for i := 0; i < maxCycles; i++ {
+		cpu.HandleKeyboard()
 		cpu.HandleInterrupts()
 		if !cpu.Halted {
 			cpu.ParseNextOpcode()
