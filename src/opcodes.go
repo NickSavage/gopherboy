@@ -1,4 +1,4 @@
-package main
+package gopherboy
 
 import (
 	"fmt"
@@ -9,6 +9,33 @@ func (cpu *CPU) Bit(bit uint8, value uint8) {
 	cpu.Flags.SetZ(value&(1<<bit) == 0)
 	cpu.Flags.SetN(false)
 	cpu.Flags.SetH(true)
+}
+
+func RLC(value byte) (result uint8, flags uint8) {
+	highBit := (value & 0x80) >> 7
+	result = (value << 1) | highBit
+	flags = 0
+	if result == 0 {
+		flags |= 0x80 // Set Z flag
+	}
+	if highBit == 1 {
+		flags |= 0x10 // Set C flag
+	}
+	// N and H flags are always reset
+	return result, flags
+}
+
+func RRC(value byte) (result byte, flags byte) {
+	lowBit := value & 0x01
+	result = (value >> 1) | (lowBit << 7)
+	flags = 0
+	if result == 0 {
+		flags |= 0x80 // Set Z flag
+	}
+	if lowBit == 1 {
+		flags |= 0x10 // Set C flag
+	}
+	return result, flags
 }
 
 func (cpu *CPU) ReadMemory(address uint16) uint8 {
@@ -31,6 +58,88 @@ func (cpu *CPU) ParseNextCBOpcode() {
 	// 	cpu.Registers[RegD], cpu.Registers[RegE], cpu.Registers[RegH], cpu.Registers[RegL],
 	// 	cpu.Flags.Z(), cpu.Flags.N(), cpu.Flags.H(), cpu.Flags.C())
 	switch next {
+	case 0x00: // RLC B
+		result, flags := RLC(cpu.Registers[RegB])
+		cpu.Registers[RegB] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x01: // RLC C
+		result, flags := RLC(cpu.Registers[RegC])
+		cpu.Registers[RegC] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x02: // RLC D
+		result, flags := RLC(cpu.Registers[RegD])
+		cpu.Registers[RegD] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x03: // RLC E
+		result, flags := RLC(cpu.Registers[RegE])
+		cpu.Registers[RegE] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x04: // RLC H
+		result, flags := RLC(cpu.Registers[RegH])
+		cpu.Registers[RegH] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x05: // RLC L
+		result, flags := RLC(cpu.Registers[RegL])
+		cpu.Registers[RegL] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x06: // RLC (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		result, flags := RLC(value)
+		cpu.Memory[cpu.GetHL()] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 16
+	case 0x07: // RLC A
+		result, flags := RLC(cpu.Registers[RegA])
+		cpu.Registers[RegA] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x08: // RRC B
+		result, flags := RRC(cpu.Registers[RegB])
+		cpu.Registers[RegB] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x09: // RRC C
+		result, flags := RRC(cpu.Registers[RegC])
+		cpu.Registers[RegC] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x0A: // RRC D
+		result, flags := RRC(cpu.Registers[RegD])
+		cpu.Registers[RegD] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x0B: // RRC E
+		result, flags := RRC(cpu.Registers[RegE])
+		cpu.Registers[RegE] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x0C: // RRC H
+		result, flags := RRC(cpu.Registers[RegH])
+		cpu.Registers[RegH] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x0D: // RRC L
+		result, flags := RRC(cpu.Registers[RegL])
+		cpu.Registers[RegL] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x0E: // RRC (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		result, flags := RRC(value)
+		cpu.Memory[cpu.GetHL()] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 16
+	case 0x0F: // RRC A
+		result, flags := RRC(cpu.Registers[RegA])
+		cpu.Registers[RegA] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
 	case 0x30: // SWAP B
 		cpu.Registers[RegB] = cpu.Swap(cpu.Registers[RegB])
 		cpu.PC++
@@ -1225,6 +1334,22 @@ func (cpu *CPU) ParseNextOpcode() {
 		high := cpu.ReadMemory(cpu.PC + 2)
 		cpu.PC = uint16(high)<<8 | uint16(low)
 		cpu.Clock += 16
+	case 0xC4: // CALL NZ, u16
+		if !cpu.Flags.Z() {
+			newPC := uint16(cpu.ReadMemory(cpu.PC+2))<<8 | uint16(cpu.ReadMemory(cpu.PC+1))
+			cpu.PC += 3
+			high := uint8(cpu.PC >> 8)
+			low := uint8(cpu.PC & 0xFF)
+			cpu.SP--
+			cpu.Memory[cpu.SP] = high
+			cpu.SP--
+			cpu.Memory[cpu.SP] = low
+			cpu.PC = newPC
+			cpu.Clock += 24
+		} else {
+			cpu.PC += 3
+			cpu.Clock += 12
+		}
 	case 0xC5: // PUSH BC
 		cpu.PushU16(RegB, RegC)
 		cpu.PC++
@@ -1233,6 +1358,16 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.AddU8(cpu.ReadMemory(cpu.PC + 1))
 		cpu.PC += 2
 		cpu.Clock += 8
+	case 0xC7: // RST 00H
+		cpu.PC++
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0000
+		cpu.Clock += 16
 	case 0xC8: // RET Z
 		if cpu.Flags.Z() {
 			low := cpu.ReadMemory(cpu.SP)
@@ -1297,6 +1432,16 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.AdcU8(cpu.ReadMemory(cpu.PC + 1))
 		cpu.PC += 2
 		cpu.Clock += 8
+	case 0xCF: // RST 08H
+		cpu.PC++
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0008
+		cpu.Clock += 16
 	case 0xD0: // RET NC
 		if !cpu.Flags.C() {
 			low := cpu.ReadMemory(cpu.SP)
@@ -1323,6 +1468,22 @@ func (cpu *CPU) ParseNextOpcode() {
 		} else {
 			cpu.Clock += 12
 		}
+	case 0xD4: // CALL NC, u16
+		if !cpu.Flags.C() {
+			newPC := uint16(cpu.ReadMemory(cpu.PC+2))<<8 | uint16(cpu.ReadMemory(cpu.PC+1))
+			cpu.PC += 3
+			high := uint8(cpu.PC >> 8)
+			low := uint8(cpu.PC & 0xFF)
+			cpu.SP--
+			cpu.Memory[cpu.SP] = high
+			cpu.SP--
+			cpu.Memory[cpu.SP] = low
+			cpu.PC = newPC
+			cpu.Clock += 24
+		} else {
+			cpu.PC += 3
+			cpu.Clock += 12
+		}
 	case 0xD5: // PUSH DE
 		cpu.PushU16(RegD, RegE)
 		cpu.PC++
@@ -1331,6 +1492,28 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.SubU8(cpu.ReadMemory(cpu.PC + 1))
 		cpu.PC += 2
 		cpu.Clock += 8
+	case 0xD7: // RST 10H
+		cpu.PC++
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0010
+		cpu.Clock += 16
+	case 0xD8: // RET C
+		if cpu.Flags.C() {
+			low := cpu.ReadMemory(cpu.SP)
+			cpu.SP++
+			high := cpu.ReadMemory(cpu.SP)
+			cpu.SP++
+			cpu.PC = uint16(high)<<8 | uint16(low)
+			cpu.Clock += 20
+		} else {
+			cpu.PC++
+			cpu.Clock += 8
+		}
 	case 0xD9: // RETI
 		low := cpu.ReadMemory(cpu.SP)
 		cpu.SP++
@@ -1370,6 +1553,16 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.SbcU8(cpu.ReadMemory(cpu.PC + 1))
 		cpu.PC += 2
 		cpu.Clock += 8
+	case 0xDF: // RST 18H
+		cpu.PC++
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0018
+		cpu.Clock += 16
 	case 0xE0: // LD (0xFF00 + u8), A
 		address := uint16(0xFF00 + uint16(cpu.ReadMemory(cpu.PC+1)))
 		cpu.Memory[address] = cpu.Registers[RegA]
@@ -1397,6 +1590,24 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.AndU8(cpu.ReadMemory(cpu.PC + 1))
 		cpu.PC += 2
 		cpu.Clock += 8
+	case 0xE7: // RST 20H
+		cpu.PC++
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0020
+		cpu.Clock += 16
+	case 0xE8: // ADD SP, u8
+		cpu.SP += uint16(cpu.ReadMemory(cpu.PC + 1))
+		cpu.Flags.SetC(cpu.SP > 0xFF)
+		cpu.Flags.SetH(cpu.SP&0x0F > 0x0F)
+		cpu.Flags.SetN(false)
+		cpu.Flags.SetZ(false)
+		cpu.PC += 2
+		cpu.Clock += 16
 	case 0xE9: // JP (HL)
 		cpu.PC = cpu.GetHL()
 		cpu.Clock += 4
@@ -1409,6 +1620,16 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.XorU8(cpu.ReadMemory(cpu.PC + 1))
 		cpu.PC += 2
 		cpu.Clock += 8
+	case 0xEF: // RST 28H
+		cpu.PC++
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0028
+		cpu.Clock += 16
 	case 0xF0: // LD A, (0xFF00 + u8)
 		n := cpu.ReadMemory(cpu.PC + 1)
 		cpu.Registers[RegA] = cpu.ReadMemory(0xFF00 + uint16(n))
@@ -1429,6 +1650,24 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0xF6: // OR A, u8
 		cpu.OrU8(cpu.ReadMemory(cpu.PC + 1))
 		cpu.PC += 2
+		cpu.Clock += 8
+	case 0xF7: // RST 30H
+		cpu.PC++
+		high := uint8(cpu.PC >> 8)
+		low := uint8(cpu.PC & 0xFF)
+		cpu.SP--
+		cpu.Memory[cpu.SP] = high
+		cpu.SP--
+		cpu.Memory[cpu.SP] = low
+		cpu.PC = 0x0030
+		cpu.Clock += 16
+	case 0xF8: // LD HL, SP + u8
+		cpu.LoadImmediateU16(RegH, RegL, cpu.SP+uint16(cpu.ReadMemory(cpu.PC+1)))
+		cpu.PC += 2
+		cpu.Clock += 12
+	case 0xF9: // LD SP, HL
+		cpu.SP = cpu.GetHL()
+		cpu.PC += 1
 		cpu.Clock += 8
 	case 0xFA: // LD A, (0xFF00 + C)
 		high := cpu.ReadMemory(cpu.PC + 1)
