@@ -25,6 +25,41 @@ func RLC(value byte) (result uint8, flags uint8) {
 	return result, flags
 }
 
+func RL(value uint8, carryFlag bool) (result uint8, flags uint8) {
+	highBit := (value & 0x80) >> 7
+
+	result = (value << 1)
+	if carryFlag {
+		result |= 0x01
+	}
+
+	flags = 0
+	if result == 0 {
+		flags |= 0x80 // Set Z flag
+	}
+	if highBit == 1 {
+		flags |= 0x10 // Set C flag
+	}
+	return result, flags
+}
+
+func RR(value uint8, carryFlag bool) (result uint8, flags uint8) {
+	lowBit := value & 0x01
+
+	result = (value >> 1)
+	if carryFlag {
+		result |= 0x80
+	}
+
+	flags = 0
+	if result == 0 {
+		flags |= 0x80 // Set Z flag
+	}
+	if lowBit == 1 {
+		flags |= 0x10 // Set C flag
+	}
+	return result, flags
+}
 func RRC(value byte) (result byte, flags byte) {
 	lowBit := value & 0x01
 	result = (value >> 1) | (lowBit << 7)
@@ -36,6 +71,60 @@ func RRC(value byte) (result byte, flags byte) {
 		flags |= 0x10 // Set C flag
 	}
 	return result, flags
+}
+
+func SLA(value uint8) (result uint8, flags uint8) {
+	highBit := (value & 0x80) >> 7
+
+	result = value << 1 // bit 0 becomes 0 automatically
+
+	flags = 0
+	if result == 0 {
+		flags |= 0x80 // Set Z flag
+	}
+	if highBit == 1 {
+		flags |= 0x10 // Set C flag
+	}
+	return result, flags
+}
+
+func SRA(value uint8) (result uint8, flags uint8) {
+	lowBit := value & 0x01
+
+	result = (value >> 1) | (value & 0x80) // keep bit 7 the same
+
+	flags = 0
+	if result == 0 {
+		flags |= 0x80 // Set Z flag
+	}
+	if lowBit == 1 {
+		flags |= 0x10 // Set C flag
+	}
+	return result, flags
+}
+
+func SRL(value uint8) (result uint8, flags uint8) {
+	lowBit := value & 0x01
+
+	result = value >> 1 // bit 7 becomes 0 automatically
+
+	flags = 0
+	if result == 0 {
+		flags |= 0x80 // Set Z flag
+	}
+	if lowBit == 1 {
+		flags |= 0x10 // Set C flag
+	}
+	return result, flags
+}
+
+func Res(bit uint8, value uint8) uint8 {
+	mask := ^(uint8(1) << bit)
+	return value & mask
+}
+
+func Set(bit uint8, value uint8) uint8 {
+	return value | (1 << bit)
 }
 
 func (cpu *CPU) ReadMemory(address uint16) uint8 {
@@ -140,6 +229,170 @@ func (cpu *CPU) ParseNextCBOpcode() {
 		cpu.Registers[RegA] = result
 		cpu.Flags.SetValue(flags)
 		cpu.Clock += 8
+	case 0x10: // RL B
+		result, flags := RL(cpu.Registers[RegB], cpu.Flags.C())
+		cpu.Registers[RegB] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x11: // RL C
+		result, flags := RL(cpu.Registers[RegC], cpu.Flags.C())
+		cpu.Registers[RegC] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x12: // RL D
+		result, flags := RL(cpu.Registers[RegD], cpu.Flags.C())
+		cpu.Registers[RegD] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x13: // RL E
+		result, flags := RL(cpu.Registers[RegE], cpu.Flags.C())
+		cpu.Registers[RegE] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x14: // RL H
+		result, flags := RL(cpu.Registers[RegH], cpu.Flags.C())
+		cpu.Registers[RegH] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x15: // RL L
+		result, flags := RL(cpu.Registers[RegL], cpu.Flags.C())
+		cpu.Registers[RegL] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x16: // RL (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		result, flags := RL(value, cpu.Flags.C())
+		cpu.Memory[cpu.GetHL()] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 16
+	case 0x17: // RL A
+		result, flags := RL(cpu.Registers[RegA], cpu.Flags.C())
+		cpu.Registers[RegA] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x18: // RR B
+		result, flags := RR(cpu.Registers[RegB], cpu.Flags.C())
+		cpu.Registers[RegB] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x19: // RR C
+		result, flags := RR(cpu.Registers[RegC], cpu.Flags.C())
+		cpu.Registers[RegC] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x1A: // RR D
+		result, flags := RR(cpu.Registers[RegD], cpu.Flags.C())
+		cpu.Registers[RegD] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x1B: // RR E
+		result, flags := RR(cpu.Registers[RegE], cpu.Flags.C())
+		cpu.Registers[RegE] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x1C: // RR H
+		result, flags := RR(cpu.Registers[RegH], cpu.Flags.C())
+		cpu.Registers[RegH] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x1D: // RR L
+		result, flags := RR(cpu.Registers[RegL], cpu.Flags.C())
+		cpu.Registers[RegL] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x1E: // RR (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		result, flags := RR(value, cpu.Flags.C())
+		cpu.Memory[cpu.GetHL()] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 16
+	case 0x1F: // RR A
+		result, flags := RR(cpu.Registers[RegA], cpu.Flags.C())
+		cpu.Registers[RegA] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x20: // SLA B
+		result, flags := SLA(cpu.Registers[RegB])
+		cpu.Registers[RegB] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x21: // SLA C
+		result, flags := SLA(cpu.Registers[RegC])
+		cpu.Registers[RegC] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x22: // SLA D
+		result, flags := SLA(cpu.Registers[RegD])
+		cpu.Registers[RegD] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x23: // SLA E
+		result, flags := SLA(cpu.Registers[RegE])
+		cpu.Registers[RegE] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x24: // SLA H
+		result, flags := SLA(cpu.Registers[RegH])
+		cpu.Registers[RegH] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x25: // SLA L
+		result, flags := SLA(cpu.Registers[RegL])
+		cpu.Registers[RegL] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x26: // SLA (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		result, flags := SLA(value)
+		cpu.Memory[cpu.GetHL()] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 16
+	case 0x27: // SLA A
+		result, flags := SLA(cpu.Registers[RegA])
+		cpu.Registers[RegA] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x28: // SRA B
+		result, flags := SRA(cpu.Registers[RegB])
+		cpu.Registers[RegB] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x29: // SRA C
+		result, flags := SRA(cpu.Registers[RegC])
+		cpu.Registers[RegC] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x2A: // SRA D
+		result, flags := SRA(cpu.Registers[RegD])
+		cpu.Registers[RegD] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x2B: // SRA E
+		result, flags := SRA(cpu.Registers[RegE])
+		cpu.Registers[RegE] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x2C: // SRA H
+		result, flags := SRA(cpu.Registers[RegH])
+		cpu.Registers[RegH] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x2D: // SRA L
+		result, flags := SRA(cpu.Registers[RegL])
+		cpu.Registers[RegL] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x2E: // SRA (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		result, flags := SRA(value)
+		cpu.Memory[cpu.GetHL()] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 16
+	case 0x2F: // SRA A
+		result, flags := SRA(cpu.Registers[RegA])
+		cpu.Registers[RegA] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
 	case 0x30: // SWAP B
 		cpu.Registers[RegB] = cpu.Swap(cpu.Registers[RegB])
 		cpu.PC++
@@ -173,6 +426,47 @@ func (cpu *CPU) ParseNextCBOpcode() {
 	case 0x37: // SWAP A
 		cpu.Registers[RegA] = cpu.Swap(cpu.Registers[RegA])
 		cpu.PC++
+		cpu.Clock += 8
+	case 0x38: // SRL B
+		result, flags := SRL(cpu.Registers[RegB])
+		cpu.Registers[RegB] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x39: // SRL C
+		result, flags := SRL(cpu.Registers[RegC])
+		cpu.Registers[RegC] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x3A: // SRL D
+		result, flags := SRL(cpu.Registers[RegD])
+		cpu.Registers[RegD] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x3B: // SRL E
+		result, flags := SRL(cpu.Registers[RegE])
+		cpu.Registers[RegE] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x3C: // SRL H
+		result, flags := SRL(cpu.Registers[RegH])
+		cpu.Registers[RegH] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x3D: // SRL L
+		result, flags := SRL(cpu.Registers[RegL])
+		cpu.Registers[RegL] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 8
+	case 0x3E: // SRL (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		result, flags := SRL(value)
+		cpu.Memory[cpu.GetHL()] = result
+		cpu.Flags.SetValue(flags)
+		cpu.Clock += 16
+	case 0x3F: // SRL A
+		result, flags := SRL(cpu.Registers[RegA])
+		cpu.Registers[RegA] = result
+		cpu.Flags.SetValue(flags)
 		cpu.Clock += 8
 	case 0x40: // BIT 0, B
 		cpu.Bit(0, cpu.Registers[RegB])
@@ -374,57 +668,421 @@ func (cpu *CPU) ParseNextCBOpcode() {
 	case 0x7F: // BIT 7, A
 		cpu.Bit(7, cpu.Registers[RegA])
 		cpu.Clock += 8
+	case 0x80: // RES 0, B
+		cpu.Registers[RegB] = Res(0, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0x81: // RES 0, C
+		cpu.Registers[RegC] = Res(0, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0x82: // RES 0, D
+		cpu.Registers[RegD] = Res(0, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0x83: // RES 0, E
+		cpu.Registers[RegE] = Res(0, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0x84: // RES 0, H
+		cpu.Registers[RegH] = Res(0, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0x85: // RES 0, L
+		cpu.Registers[RegL] = Res(0, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0x86: // RES 0, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Res(0, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0x87: // RES 0, A
+		cpu.Registers[RegA] = Res(0, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0x88: // RES 1, B
+		cpu.Registers[RegB] = Res(1, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0x89: // RES 1, C
+		cpu.Registers[RegC] = Res(1, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0x8A: // RES 1, D
+		cpu.Registers[RegD] = Res(1, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0x8B: // RES 1, E
+		cpu.Registers[RegE] = Res(1, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0x8C: // RES 1, H
+		cpu.Registers[RegH] = Res(1, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0x8D: // RES 1, L
+		cpu.Registers[RegL] = Res(1, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0x8E: // RES 1, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Res(1, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0x8F: // RES 1, A
+		cpu.Registers[RegA] = Res(1, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0x90: // RES 2, B
+		cpu.Registers[RegB] = Res(2, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0x91: // RES 2, C
+		cpu.Registers[RegC] = Res(2, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0x92: // RES 2, D
+		cpu.Registers[RegD] = Res(2, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0x93: // RES 2, E
+		cpu.Registers[RegE] = Res(2, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0x94: // RES 2, H
+		cpu.Registers[RegH] = Res(2, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0x95: // RES 2, L
+		cpu.Registers[RegL] = Res(2, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0x96: // RES 2, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Res(2, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0x97: // RES 2, A
+		cpu.Registers[RegA] = Res(2, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0x98: // RES 3, B
+		cpu.Registers[RegB] = Res(3, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0x99: // RES 3, C
+		cpu.Registers[RegC] = Res(3, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0x9A: // RES 3, D
+		cpu.Registers[RegD] = Res(3, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0x9B: // RES 3, E
+		cpu.Registers[RegE] = Res(3, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0x9C: // RES 3, H
+		cpu.Registers[RegH] = Res(3, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0x9D: // RES 3, L
+		cpu.Registers[RegL] = Res(3, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0x9E: // RES 3, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Res(3, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0x9F: // RES 3, A
+		cpu.Registers[RegA] = Res(3, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xA0: // RES 4, B
+		cpu.Registers[RegB] = Res(4, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xA1: // RES 4, C
+		cpu.Registers[RegC] = Res(4, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xA2: // RES 4, D
+		cpu.Registers[RegD] = Res(4, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xA3: // RES 4, E
+		cpu.Registers[RegE] = Res(4, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xA4: // RES 4, H
+		cpu.Registers[RegH] = Res(4, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xA5: // RES 4, L
+		cpu.Registers[RegL] = Res(4, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xA6: // RES 4, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Res(4, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xA7: // RES 4, A
+		cpu.Registers[RegA] = Res(4, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xA8: // RES 5, B
+		cpu.Registers[RegB] = Res(5, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xA9: // RES 5, C
+		cpu.Registers[RegC] = Res(5, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xAA: // RES 5, D
+		cpu.Registers[RegD] = Res(5, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xAB: // RES 5, E
+		cpu.Registers[RegE] = Res(5, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xAC: // RES 5, H
+		cpu.Registers[RegH] = Res(5, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xAD: // RES 5, L
+		cpu.Registers[RegL] = Res(5, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xAE: // RES 5, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Res(5, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xAF: // RES 5, A
+		cpu.Registers[RegA] = Res(5, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xB0: // RES 6, B
+		cpu.Registers[RegB] = Res(6, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xB1: // RES 6, C
+		cpu.Registers[RegC] = Res(6, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xB2: // RES 6, D
+		cpu.Registers[RegD] = Res(6, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xB3: // RES 6, E
+		cpu.Registers[RegE] = Res(6, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xB4: // RES 6, H
+		cpu.Registers[RegH] = Res(6, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xB5: // RES 6, L
+		cpu.Registers[RegL] = Res(6, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xB6: // RES 6, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Set(2, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xB7: // RES 6, A
+		cpu.Registers[RegA] = Res(6, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xB8: // RES 7, B
+		cpu.Registers[RegB] = Res(7, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xB9: // RES 7, C
+		cpu.Registers[RegC] = Res(7, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xBA: // RES 7, D
+		cpu.Registers[RegD] = Res(7, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xBB: // RES 7, E
+		cpu.Registers[RegE] = Res(7, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xBC: // RES 7, H
+		cpu.Registers[RegH] = Res(7, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xBD: // RES 7, L
+		cpu.Registers[RegL] = Res(7, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xBE: // RES 7, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Set(3, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xBF: // RES 7, A
+		cpu.Registers[RegA] = Res(7, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xC0: // SET 0, B
+		cpu.Registers[RegB] = Set(0, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xC1: // SET 0, C
+		cpu.Registers[RegC] = Set(0, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xC2: // SET 0, D
+		cpu.Registers[RegD] = Set(0, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xC3: // SET 0, E
+		cpu.Registers[RegE] = Set(0, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xC4: // SET 0, H
+		cpu.Registers[RegH] = Set(0, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xC5: // SET 0, L
+		cpu.Registers[RegL] = Set(0, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xC6: // SET 0, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Set(0, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xC7: // SET 0, A
+		cpu.Registers[RegA] = Set(0, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xC8: // SET 1, B
+		cpu.Registers[RegB] = Set(1, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xC9: // SET 1, C
+		cpu.Registers[RegC] = Set(1, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xCA: // SET 1, D
+		cpu.Registers[RegD] = Set(1, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xCB: // SET 1, E
+		cpu.Registers[RegE] = Set(1, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xCC: // SET 1, H
+		cpu.Registers[RegH] = Set(1, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xCD: // SET 1, L
+		cpu.Registers[RegL] = Set(1, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xCE: // SET 1, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Set(1, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xCF: // SET 1, A
+		cpu.Registers[RegA] = Set(1, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xD0: // SET 2, B
+		cpu.Registers[RegB] = Set(2, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xD1: // SET 2, C
+		cpu.Registers[RegC] = Set(2, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xD2: // SET 2, D
+		cpu.Registers[RegD] = Set(2, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xD3: // SET 2, E
+		cpu.Registers[RegE] = Set(2, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xD4: // SET 2, H
+		cpu.Registers[RegH] = Set(2, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xD5: // SET 2, L
+		cpu.Registers[RegL] = Set(2, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xD6: // SET 2, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Set(2, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xD7: // SET 2, A
+		cpu.Registers[RegA] = Set(2, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xD8: // SET 3, B
+		cpu.Registers[RegB] = Set(3, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xD9: // SET 3, C
+		cpu.Registers[RegC] = Set(3, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xDA: // SET 3, D
+		cpu.Registers[RegD] = Set(3, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xDB: // SET 3, E
+		cpu.Registers[RegE] = Set(3, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xDC: // SET 3, H
+		cpu.Registers[RegH] = Set(3, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xDD: // SET 3, L
+		cpu.Registers[RegL] = Set(3, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xDE: // SET 3, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Set(3, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xDF: // SET 3, A
+		cpu.Registers[RegA] = Set(3, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xE0: // SET 4, B
+		cpu.Registers[RegB] = Set(4, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xE1: // SET 4, C
+		cpu.Registers[RegC] = Set(4, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xE2: // SET 4, D
+		cpu.Registers[RegD] = Set(4, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xE3: // SET 4, E
+		cpu.Registers[RegE] = Set(4, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xE4: // SET 4, H
+		cpu.Registers[RegH] = Set(4, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xE5: // SET 4, L
+		cpu.Registers[RegL] = Set(4, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xE6: // SET 4, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Set(4, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xE7: // SET 4, A
+		cpu.Registers[RegA] = Set(4, cpu.Registers[RegA])
+		cpu.Clock += 8
+	case 0xE8: // SET 5, B
+		cpu.Registers[RegB] = Set(5, cpu.Registers[RegB])
+		cpu.Clock += 8
+	case 0xE9: // SET 5, C
+		cpu.Registers[RegC] = Set(5, cpu.Registers[RegC])
+		cpu.Clock += 8
+	case 0xEA: // SET 5, D
+		cpu.Registers[RegD] = Set(5, cpu.Registers[RegD])
+		cpu.Clock += 8
+	case 0xEB: // SET 5, E
+		cpu.Registers[RegE] = Set(5, cpu.Registers[RegE])
+		cpu.Clock += 8
+	case 0xEC: // SET 5, H
+		cpu.Registers[RegH] = Set(5, cpu.Registers[RegH])
+		cpu.Clock += 8
+	case 0xED: // SET 5, L
+		cpu.Registers[RegL] = Set(5, cpu.Registers[RegL])
+		cpu.Clock += 8
+	case 0xEE: // SET 5, (HL)
+		value := cpu.ReadMemory(cpu.GetHL())
+		value = Set(5, value)
+		cpu.Memory[cpu.GetHL()] = value
+		cpu.Clock += 16
+	case 0xEF: // SET 5, A
+		cpu.Registers[RegA] = Set(5, cpu.Registers[RegA])
+		cpu.Clock += 8
 	case 0xF0: // SET 6, B
-		cpu.Registers[RegB] = cpu.Registers[RegB] | 0x40
+		cpu.Registers[RegB] = Set(6, cpu.Registers[RegB])
 		cpu.Clock += 8
 	case 0xF1: // SET 6, C
-		cpu.Registers[RegC] = cpu.Registers[RegC] | 0x40
+		cpu.Registers[RegC] = Set(6, cpu.Registers[RegC])
 		cpu.Clock += 8
 	case 0xF2: // SET 6, D
-		cpu.Registers[RegD] = cpu.Registers[RegD] | 0x40
+		cpu.Registers[RegD] = Set(6, cpu.Registers[RegD])
 		cpu.Clock += 8
 	case 0xF3: // SET 6, E
-		cpu.Registers[RegE] = cpu.Registers[RegE] | 0x40
+		cpu.Registers[RegE] = Set(6, cpu.Registers[RegE])
 		cpu.Clock += 8
 	case 0xF4: // SET 6, H
-		cpu.Registers[RegH] = cpu.Registers[RegH] | 0x40
+		cpu.Registers[RegH] = Set(6, cpu.Registers[RegH])
 		cpu.Clock += 8
 	case 0xF5: // SET 6, L
-		cpu.Registers[RegL] = cpu.Registers[RegL] | 0x40
+		cpu.Registers[RegL] = Set(6, cpu.Registers[RegL])
 		cpu.Clock += 8
 	case 0xF6: // SET 6, (HL)
 		value := cpu.ReadMemory(cpu.GetHL())
-		value = value | 0x40
+		value = Set(6, value)
 		cpu.Memory[cpu.GetHL()] = value
 		cpu.Clock += 16
 	case 0xF7: // SET 6, A
-		cpu.Registers[RegA] = cpu.Registers[RegA] | 0x40
+		cpu.Registers[RegA] = Set(6, cpu.Registers[RegA])
 		cpu.Clock += 8
 	case 0xF8: // SET 7, B
-		cpu.Registers[RegB] = cpu.Registers[RegB] | 0x80
+		cpu.Registers[RegB] = Set(7, cpu.Registers[RegB])
 		cpu.Clock += 8
 	case 0xF9: // SET 7, C
-		cpu.Registers[RegC] = cpu.Registers[RegC] | 0x80
+		cpu.Registers[RegC] = Set(7, cpu.Registers[RegC])
 		cpu.Clock += 8
 	case 0xFA: // SET 7, D
-		cpu.Registers[RegD] = cpu.Registers[RegD] | 0x80
+		cpu.Registers[RegD] = Set(7, cpu.Registers[RegD])
 		cpu.Clock += 8
 	case 0xFB: // SET 7, E
-		cpu.Registers[RegE] = cpu.Registers[RegE] | 0x80
+		cpu.Registers[RegE] = Set(7, cpu.Registers[RegE])
 		cpu.Clock += 8
 	case 0xFC: // SET 7, H
-		cpu.Registers[RegH] = cpu.Registers[RegH] | 0x80
+		cpu.Registers[RegH] = Set(7, cpu.Registers[RegH])
 		cpu.Clock += 8
 	case 0xFD: // SET 7, L
-		cpu.Registers[RegL] = cpu.Registers[RegL] | 0x80
+		cpu.Registers[RegL] = Set(7, cpu.Registers[RegL])
 		cpu.Clock += 8
 	case 0xFE: // SET 7, (HL)
 		value := cpu.ReadMemory(cpu.GetHL())
-		value = value | 0x80
+		value = Set(7, value)
 		cpu.Memory[cpu.GetHL()] = value
 		cpu.Clock += 16
 	case 0xFF: // SET 7, A
-		cpu.Registers[RegA] = cpu.Registers[RegA] | 0x80
+		cpu.Registers[RegA] = Set(7, cpu.Registers[RegA])
 		cpu.Clock += 8
 	default:
 		log.Fatalf("Unknown CB opcode: 0x%02X", next)
@@ -1639,6 +2297,10 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PopU16(RegA, RegF)
 		cpu.PC++
 		cpu.Clock += 12
+	case 0xF2: // LD A, (C)
+		cpu.Registers[RegA] = cpu.ReadMemory(0xFF00 + uint16(cpu.Registers[RegC]))
+		cpu.PC++
+		cpu.Clock += 8
 	case 0xF3: // DI
 		cpu.IME = 0
 		cpu.PC++
