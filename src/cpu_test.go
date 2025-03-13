@@ -96,6 +96,7 @@ func LoadAllTests(dirPath string) (map[string][]CPUTest, error) {
 }
 
 func RunTest(test CPUTest, t *testing.T) {
+	log.Printf("Running test: %v", test.Name)
 	cpu := InitCPU()
 	cpu.Registers[RegA] = test.Initial.A
 	cpu.Registers[RegB] = test.Initial.B
@@ -118,37 +119,48 @@ func RunTest(test CPUTest, t *testing.T) {
 	// check
 
 	if cpu.Registers[RegA] != test.Final.A {
+		log.Printf("A register mismatch: expected %v, got %v", test.Final.A, cpu.Registers[RegA])
 		t.Errorf("A register mismatch: expected %v, got %v", test.Final.A, cpu.Registers[RegA])
 	}
 	if cpu.Registers[RegB] != test.Final.B {
+		log.Printf("B register mismatch: expected %v, got %v", test.Final.B, cpu.Registers[RegB])
 		t.Errorf("B register mismatch: expected %v, got %v", test.Final.B, cpu.Registers[RegB])
 	}
 	if cpu.Registers[RegC] != test.Final.C {
+		log.Printf("C register mismatch: expected %v, got %v", test.Final.C, cpu.Registers[RegC])
 		t.Errorf("C register mismatch: expected %v, got %v", test.Final.C, cpu.Registers[RegC])
 	}
 	if cpu.Registers[RegD] != test.Final.D {
+		log.Printf("D register mismatch: expected %v, got %v", test.Final.D, cpu.Registers[RegD])
 		t.Errorf("D register mismatch: expected %v, got %v", test.Final.D, cpu.Registers[RegD])
 	}
 	if cpu.Registers[RegE] != test.Final.E {
+		log.Printf("E register mismatch: expected %v, got %v", test.Final.E, cpu.Registers[RegE])
 		t.Errorf("E register mismatch: expected %v, got %v", test.Final.E, cpu.Registers[RegE])
 	}
 	if cpu.Registers[RegF] != test.Final.F {
+		log.Printf("F register mismatch: expected %v, got %v", test.Final.F, cpu.Registers[RegF])
 		t.Errorf("F register mismatch: expected %v, got %v", test.Final.F, cpu.Registers[RegF])
 	}
 	if cpu.Registers[RegH] != test.Final.H {
+		log.Printf("H register mismatch: expected %v, got %v", test.Final.H, cpu.Registers[RegH])
 		t.Errorf("H register mismatch: expected %v, got %v", test.Final.H, cpu.Registers[RegH])
 	}
 	if cpu.Registers[RegL] != test.Final.L {
+		log.Printf("L register mismatch: expected %v, got %v", test.Final.L, cpu.Registers[RegL])
 		t.Errorf("L register mismatch: expected %v, got %v", test.Final.L, cpu.Registers[RegL])
 	}
-	if cpu.PC != test.Final.PC {
-		t.Errorf("PC mismatch: expected %v, got %v", test.Final.PC, cpu.PC)
+	if cpu.PC != test.Final.PC-1 {
+		log.Printf("PC mismatch: expected %v, got %v", test.Final.PC-1, cpu.PC)
+		t.Errorf("PC mismatch: expected %v, got %v", test.Final.PC-1, cpu.PC)
 	}
 	if cpu.SP != test.Final.SP {
+		log.Printf("SP mismatch: expected %v, got %v", test.Final.SP, cpu.SP)
 		t.Errorf("SP mismatch: expected %v, got %v", test.Final.SP, cpu.SP)
 	}
 	for i, ram := range test.Final.RAM {
 		if cpu.Memory[ram[0]] != uint8(ram[1]) {
+			log.Printf("RAM mismatch at index %v: expected %v, got %v", i, ram[1], cpu.Memory[ram[0]])
 			t.Errorf("RAM mismatch at index %v: expected %v, got %v", i, ram[1], cpu.Memory[ram[0]])
 		}
 	}

@@ -1212,12 +1212,19 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 2
 		cpu.Clock += 8
 	case 0x17: // RLA
+
+		// Save original bit 7 before rotation
+		oldBit7 := (cpu.Registers[RegA] & 0x80) != 0
+
+		// Perform rotation
 		carryBit := uint8(0)
 		if cpu.Flags.C() {
 			carryBit = 1
 		}
 		cpu.Registers[RegA] = (cpu.Registers[RegA] << 1) | carryBit
-		cpu.Flags.SetC((cpu.Registers[RegA] & 0x80) != 0)
+
+		// Use the saved bit 7 to set carry flag
+		cpu.Flags.SetC(oldBit7)
 		cpu.Flags.SetZ(false)
 		cpu.Flags.SetN(false)
 		cpu.Flags.SetH(false)
