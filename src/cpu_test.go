@@ -1,4 +1,4 @@
-package gopherboy
+package main
 
 import (
 	"encoding/json"

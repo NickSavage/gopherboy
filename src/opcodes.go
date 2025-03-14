@@ -1,4 +1,4 @@
-package gopherboy
+package main
 
 import (
 	"fmt"
@@ -1087,6 +1087,7 @@ func (cpu *CPU) ParseNextCBOpcode() {
 	default:
 		log.Fatalf("Unknown CB opcode: 0x%02X", next)
 	}
+	cpu.PC += 1
 }
 
 func (cpu *CPU) ParseNextOpcode() {
@@ -1173,8 +1174,13 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 2
 		cpu.Clock += 8
 	case 0x0F: // RRCA
+		oldBit0 := cpu.Registers[RegA] & 0x01
 		cpu.Registers[RegA] = (cpu.Registers[RegA] >> 1) | (cpu.Registers[RegA] << 7)
-		cpu.Flags.SetC((cpu.Registers[RegA] & 0x01) != 0)
+		if oldBit0 != 0 {
+			cpu.Flags.SetC(true)
+		} else {
+			cpu.Flags.SetC(false)
+		}
 		cpu.Flags.SetZ(false)
 		cpu.Flags.SetN(false)
 		cpu.Flags.SetH(false)
@@ -1266,12 +1272,13 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 2
 		cpu.Clock += 8
 	case 0x1F: // RLA
-		carryBit := uint8(0)
+		oldBit0 := cpu.Registers[RegA] & 0x01
+		var oldCarry uint8 = 0
 		if cpu.Flags.C() {
-			carryBit = 1
+			oldCarry = 1
 		}
-		cpu.Registers[RegA] = (cpu.Registers[RegA] << 1) | carryBit
-		cpu.Flags.SetC((cpu.Registers[RegA] & 0x80) != 0)
+		cpu.Registers[RegA] = (cpu.Registers[RegA] >> 1) | (oldCarry << 7)
+		cpu.Flags.SetC(oldBit0 == 1)
 		cpu.Flags.SetZ(false)
 		cpu.Flags.SetN(false)
 		cpu.Flags.SetH(false)
@@ -1388,7 +1395,7 @@ func (cpu *CPU) ParseNextOpcode() {
 	case 0x30: // JR NC, i8
 		if !cpu.Flags.C() {
 			offset := int8(cpu.ReadMemory(cpu.PC + 1)) // Treat as signed byte
-			cpu.PC += 1                                // Move past opcode and offset
+			cpu.PC += 2                                // Move past opcode and offset
 			cpu.PC += uint16(offset)                   // Add the offset
 		} else {
 			cpu.PC += 2 // Skip the instruction without jumping
@@ -2286,9 +2293,22 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC = 0x0020
 		cpu.Clock += 16
 	case 0xE8: // ADD SP, u8
-		cpu.SP += uint16(cpu.ReadMemory(cpu.PC + 1))
-		cpu.Flags.SetC(cpu.SP > 0xFF)
-		cpu.Flags.SetH(cpu.SP&0x0F > 0x0F)
+		offset := uint16(int8(cpu.ReadMemory(cpu.PC + 1)))
+
+		// Check carry from bit 7
+		if ((cpu.SP & 0xFF) + (offset & 0xFF)) > 0xFF {
+			cpu.Flags.SetC(true)
+		} else {
+			cpu.Flags.SetC(false)
+		}
+
+		// Check half carry from bit 3
+		if ((cpu.SP & 0xF) + (offset & 0xF)) > 0xF {
+			cpu.Flags.SetH(true)
+		} else {
+			cpu.Flags.SetH(false)
+		}
+		cpu.SP += offset
 		cpu.Flags.SetN(false)
 		cpu.Flags.SetZ(false)
 		cpu.PC += 2
