@@ -2343,8 +2343,8 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 8
 	case 0xFA: // LD A, (0xFF00 + C)
-		high := cpu.ReadMemory(cpu.PC + 1)
-		low := cpu.ReadMemory(cpu.PC + 2)
+		high := cpu.ReadMemory(cpu.PC + 2)
+		low := cpu.ReadMemory(cpu.PC + 1)
 		cpu.Registers[RegA] = cpu.ReadMemory(uint16(high)<<8 | uint16(low))
 		cpu.PC += 3
 		cpu.Clock += 16
