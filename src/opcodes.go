@@ -1119,14 +1119,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x05: // DEC B
-		cpu.Registers[RegB]--
-		if cpu.Registers[RegB] == 0 {
-			cpu.Flags.SetZ(true)
-		} else {
-			cpu.Flags.SetZ(false)
-		}
-		cpu.Flags.SetN(true)
-		cpu.Flags.SetH(true)
+		flags := uint8(0)
+		cpu.Registers[RegB], flags = cpu.DecrementU8(cpu.Registers[RegB])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x06: // LD B, u8
@@ -1164,12 +1159,11 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x0D: // DEC C
-		cpu.Registers[RegC]--
+		flags := uint8(0)
+		cpu.Registers[RegC], flags = cpu.DecrementU8(cpu.Registers[RegC])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
-		cpu.Flags.SetZ(cpu.Registers[RegC] == 0)
-		cpu.Flags.SetN(true)
-
 	case 0x0E: // LD C, u8
 		cpu.LoadImmediate(RegC, cpu.ReadMemory(cpu.PC+1))
 		cpu.PC += 2
@@ -1204,7 +1198,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x15: // DEC D
-		cpu.Registers[RegD]--
+		flags := uint8(0)
+		cpu.Registers[RegD], flags = cpu.DecrementU8(cpu.Registers[RegD])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x16: // LD D, u8
@@ -1252,7 +1248,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x1D: // DEC E
-		cpu.Registers[RegE]--
+		flags := uint8(0)
+		cpu.Registers[RegE], flags = cpu.DecrementU8(cpu.Registers[RegE])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x1E: // LD E, u8
@@ -1299,7 +1297,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x25: // DEC H
-		cpu.Registers[RegH]--
+		flags := uint8(0)
+		cpu.Registers[RegH], flags = cpu.DecrementU8(cpu.Registers[RegH])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x26: // LD H, u8
@@ -1358,7 +1358,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x2D: // DEC L
-		cpu.Registers[RegL]--
+		flags := uint8(0)
+		cpu.Registers[RegL], flags = cpu.DecrementU8(cpu.Registers[RegL])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x2E: // LD L, u8
@@ -1401,7 +1403,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.Clock += 12
 	case 0x35: //DEC (HL)
 		value := cpu.ReadMemory(cpu.GetHL())
-		cpu.Memory[cpu.GetHL()] = value - 1
+		flags := uint8(0)
+		cpu.Memory[cpu.GetHL()], flags = cpu.DecrementU8(value)
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 12
 		cpu.Flags.SetZ(cpu.Memory[cpu.GetHL()] == 0)
@@ -1443,11 +1447,11 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x3D: // DEC A
-		cpu.Registers[RegA]--
+		flags := uint8(0)
+		cpu.Registers[RegA], flags = cpu.DecrementU8(cpu.Registers[RegA])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
-		cpu.Flags.SetZ(cpu.Registers[RegA] == 0)
-		cpu.Flags.SetN(true)
 	case 0x3E: // LD A, u8
 		cpu.LoadImmediate(RegA, cpu.ReadMemory(cpu.PC+1))
 		cpu.PC += 2
@@ -2429,6 +2433,32 @@ func (cpu *CPU) DecrementU16Register(high uint8, low uint8) {
 	cpu.Registers[low] = uint8(value & 0xFF)
 }
 
+func (cpu *CPU) DecrementU8(value uint8) (uint8, uint8) {
+	flags := uint8(0)
+
+	// Check half carry BEFORE decrementing
+	// Half carry occurs if lower nibble is 0
+	if (value & 0x0F) == 0 {
+		flags |= 1 << 5
+	}
+
+	value--
+
+	// Zero flag
+	if value == 0 {
+		flags |= 1 << 7
+	}
+
+	// n always set
+	flags |= 1 << 6
+
+	// preserve c
+	if cpu.Flags.C() {
+		flags |= 1 << 4
+	}
+
+	return value, flags
+}
 func (cpu *CPU) AddU16Register(high uint8, low uint8, value uint16) {
 	currentValue := uint16(cpu.Registers[high])<<8 | uint16(cpu.Registers[low])
 	result := currentValue + value
