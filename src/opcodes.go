@@ -1115,7 +1115,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 8
 	case 0x04: // INC B
-		cpu.Registers[RegB]++
+		flags := uint8(0)
+		cpu.Registers[RegB], flags = cpu.IncrementU8(cpu.Registers[RegB])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x05: // DEC B
@@ -1155,7 +1157,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 8
 	case 0x0C: // INC C
-		cpu.Registers[RegC]++
+		flags := uint8(0)
+		cpu.Registers[RegC], flags = cpu.IncrementU8(cpu.Registers[RegC])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x0D: // DEC C
@@ -1194,7 +1198,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 8
 	case 0x14: // INC D
-		cpu.Registers[RegD]++
+		flags := uint8(0)
+		cpu.Registers[RegD], flags = cpu.IncrementU8(cpu.Registers[RegD])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x15: // DEC D
@@ -1244,7 +1250,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 8
 	case 0x1C: // INC E
-		cpu.Registers[RegE]++
+		flags := uint8(0)
+		cpu.Registers[RegE], flags = cpu.IncrementU8(cpu.Registers[RegE])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x1D: // DEC E
@@ -1293,7 +1301,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 8
 	case 0x24: // INC H
-		cpu.Registers[RegH]++
+		flags := uint8(0)
+		cpu.Registers[RegH], flags = cpu.IncrementU8(cpu.Registers[RegH])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x25: // DEC H
@@ -1354,7 +1364,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 8
 	case 0x2C: // INC L
-		cpu.Registers[RegL]++
+		flags := uint8(0)
+		cpu.Registers[RegL], flags = cpu.IncrementU8(cpu.Registers[RegL])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x2D: // DEC L
@@ -1398,7 +1410,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.Clock += 4
 	case 0x34: // INC (HL)
 		value := cpu.ReadMemory(cpu.GetHL())
-		cpu.Memory[cpu.GetHL()] = value + 1
+		flags := uint8(0)
+		cpu.Memory[cpu.GetHL()], flags = cpu.IncrementU8(value)
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 12
 	case 0x35: //DEC (HL)
@@ -1443,7 +1457,9 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x3C: // INC A
-		cpu.Registers[RegA]++
+		flags := uint8(0)
+		cpu.Registers[RegA], flags = cpu.IncrementU8(cpu.Registers[RegA])
+		cpu.Flags.SetValue(flags)
 		cpu.PC += 1
 		cpu.Clock += 4
 	case 0x3D: // DEC A
@@ -2424,6 +2440,28 @@ func (cpu *CPU) IncrementU16Register(high uint8, low uint8) {
 	value++
 	cpu.Registers[high] = uint8(value >> 8)
 	cpu.Registers[low] = uint8(value & 0xFF)
+}
+
+func (cpu *CPU) IncrementU8(value uint8) (uint8, uint8) {
+	flags := uint8(0)
+
+	if (value & 0x0F) == 0x0F {
+		flags |= 1 << 5
+	}
+
+	value++
+
+	// Zero flag
+	if value == 0 {
+		flags |= 1 << 7
+	}
+
+	// preserve c
+	if cpu.Flags.C() {
+		flags |= 1 << 4
+	}
+
+	return value, flags
 }
 
 func (cpu *CPU) DecrementU16Register(high uint8, low uint8) {
