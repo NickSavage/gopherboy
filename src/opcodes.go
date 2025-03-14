@@ -2350,8 +2350,19 @@ func (cpu *CPU) ParseNextOpcode() {
 		cpu.Memory[cpu.SP] = low
 		cpu.PC = 0x0030
 		cpu.Clock += 16
-	case 0xF8: // LD HL, SP + u8
-		cpu.LoadImmediateU16(RegH, RegL, cpu.SP+uint16(cpu.ReadMemory(cpu.PC+1)))
+	case 0xF8: // LD HL, SP + s8
+		immediate := int8(cpu.ReadMemory(cpu.PC + 1))
+		value := uint16(int32(cpu.SP) + int32(immediate))
+
+		// Set HL to result
+		cpu.LoadImmediateU16(RegH, RegL, value)
+
+		// Flags are set based on the lower byte addition only
+		cpu.Flags.SetH((cpu.SP&0x0F + uint16(immediate&0x0F)) > 0x0F)
+		cpu.Flags.SetC((cpu.SP&0xFF + uint16(immediate)&0xFF) > 0xFF)
+		cpu.Flags.SetZ(false)
+		cpu.Flags.SetN(false)
+
 		cpu.PC += 2
 		cpu.Clock += 12
 	case 0xF9: // LD SP, HL
