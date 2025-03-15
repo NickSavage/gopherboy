@@ -395,37 +395,29 @@ func (cpu *CPU) ParseNextCBOpcode() {
 		cpu.Clock += 8
 	case 0x30: // SWAP B
 		cpu.Registers[RegB] = cpu.Swap(cpu.Registers[RegB])
-		cpu.PC++
 		cpu.Clock += 8
 	case 0x31: // SWAP C
 		cpu.Registers[RegC] = cpu.Swap(cpu.Registers[RegC])
-		cpu.PC++
 		cpu.Clock += 8
 	case 0x32: // SWAP D
 		cpu.Registers[RegD] = cpu.Swap(cpu.Registers[RegD])
-		cpu.PC++
 		cpu.Clock += 8
 	case 0x33: // SWAP E
 		cpu.Registers[RegE] = cpu.Swap(cpu.Registers[RegE])
-		cpu.PC++
 		cpu.Clock += 8
 	case 0x34: // SWAP H
 		cpu.Registers[RegH] = cpu.Swap(cpu.Registers[RegH])
-		cpu.PC++
 		cpu.Clock += 8
 	case 0x35: // SWAP L
 		cpu.Registers[RegL] = cpu.Swap(cpu.Registers[RegL])
-		cpu.PC++
 		cpu.Clock += 8
 	case 0x36: // SWAP (HL)
 		value := cpu.ReadMemory(cpu.GetHL())
 		value = cpu.Swap(value)
 		cpu.Memory[cpu.GetHL()] = value
-		cpu.PC++
 		cpu.Clock += 16
 	case 0x37: // SWAP A
 		cpu.Registers[RegA] = cpu.Swap(cpu.Registers[RegA])
-		cpu.PC++
 		cpu.Clock += 8
 	case 0x38: // SRL B
 		result, flags := SRL(cpu.Registers[RegB])
@@ -844,7 +836,7 @@ func (cpu *CPU) ParseNextCBOpcode() {
 		cpu.Clock += 8
 	case 0xB6: // RES 6, (HL)
 		value := cpu.ReadMemory(cpu.GetHL())
-		value = Set(2, value)
+		value = Res(6, value)
 		cpu.Memory[cpu.GetHL()] = value
 		cpu.Clock += 16
 	case 0xB7: // RES 6, A
@@ -870,7 +862,7 @@ func (cpu *CPU) ParseNextCBOpcode() {
 		cpu.Clock += 8
 	case 0xBE: // RES 7, (HL)
 		value := cpu.ReadMemory(cpu.GetHL())
-		value = Set(3, value)
+		value = Res(7, value)
 		cpu.Memory[cpu.GetHL()] = value
 		cpu.Clock += 16
 	case 0xBF: // RES 7, A
