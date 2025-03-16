@@ -3,3 +3,4 @@ output
 memory_dump.bin
 disassembly
 tests/roms
+src/boot.gb

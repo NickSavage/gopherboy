@@ -2258,6 +2258,9 @@ func (cpu *CPU) ParseNextOpcode() {
 			cpu.DMASourceBase = uint16(cpu.Registers[RegA]) << 8
 			cpu.DMACycles = 160
 		}
+		if address == 0xFF50 {
+			copy(cpu.Memory[0x0000:0x0150], cpu.ROM[0x0000:0x0150])
+		}
 	case 0xE1: // POP HL
 		cpu.PopU16(RegH, RegL)
 		cpu.PC++

@@ -37,12 +37,12 @@ func (cpu *CPU) BuildFrame() [][]uint32 {
 		tileIndexAddr = 0x9C00
 	}
 
-	for x := 0; x < 160; x++ {
+	for x := uint8(0); x < 160; x++ {
 		var addr uint16
-		tileX := uint8(x / 8)
-		tileY := uint8(ly / 8)
-		tilePixelX := uint8(x % 8)
-		tilePixelY := uint8(ly % 8)
+		tileX := uint8((x + cpu.Memory[0xFF43]) % 255 / 8)
+		tileY := uint8((ly + cpu.Memory[0xFF42]) % 255 / 8)
+		tilePixelX := uint8((x + cpu.Memory[0xFF43]) % 8)
+		tilePixelY := uint8((ly + cpu.Memory[0xFF42]) % 8)
 
 		tileId := cpu.Memory[tileIndexAddr+uint16(tileY*32+tileX)]
 		addr = bgTileDataModeAddr + uint16(tileId*16) + uint16(tilePixelY*2)
@@ -76,7 +76,7 @@ func interleaveTilePixel(low, high, index uint8) uint16 {
 	return result
 }
 
-func buildFb(cpu *CPU, ly uint8) {
+func buildFb(cpu *CPU, ly uint8, imageData []rl.Color) {
 	bgTileMapModeAddr := bgTileMapMode(cpu)
 
 	var tileIndexAddr uint16
@@ -119,7 +119,12 @@ func buildFb(cpu *CPU, ly uint8) {
 
 		pixel = interleaveTilePixel(cpu.Memory[addr], cpu.Memory[addr+1], 7-tilePixelX)
 		colourPixel = colourizePixel(int(pixel))
-		cpu.Framebuffer[ly][x] = colourPixel
+		imageData[int(ly)*160+int(x)] = rl.Color{
+			R: uint8((colourPixel >> 16) & 0xFF),
+			G: uint8((colourPixel >> 8) & 0xFF),
+			B: uint8(colourPixel & 0xFF),
+			A: uint8((colourPixel >> 24) & 0xFF),
+		}
 	}
 }
 
@@ -128,19 +133,7 @@ func (cpu *CPU) RenderGameBoy() {
 	var imageData []rl.Color = make([]rl.Color, 160*144)
 
 	for ly := uint8(0); ly < 144; ly++ {
-		buildFb(cpu, ly)
-		for x := uint8(0); x < 160; x++ {
-			index := int(ly)*160 + int(x)
-			colorValue := cpu.Framebuffer[ly][x]
-
-			// Convert uint32 ARGB to Raylib Color
-			imageData[index] = rl.Color{
-				R: uint8((colorValue >> 16) & 0xFF),
-				G: uint8((colorValue >> 8) & 0xFF),
-				B: uint8(colorValue & 0xFF),
-				A: uint8((colorValue >> 24) & 0xFF),
-			}
-		}
+		buildFb(cpu, ly, imageData)
 	}
 
 	// Update the texture directly with the new color data

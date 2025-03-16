@@ -105,7 +105,7 @@ func InitCPU() *CPU {
 		Halted:    false,
 		SP:        0xFFFE,
 		Flags:     &Flags{},
-		PC:        0x0150,
+		PC:        0x0000,
 	}
 	result.Flags.CPU = &result
 	result.Memory[0xFF43] = 0
@@ -152,6 +152,15 @@ func (cpu *CPU) CheckError() error {
 	return nil // No error detected
 }
 
+func LoadBoot(cpu *CPU, bootFilePath string) error {
+	bootData, err := os.ReadFile(bootFilePath)
+	if err != nil {
+		return fmt.Errorf("error reading boot file: %v", err)
+	}
+	copy(cpu.Memory[0x0000:0x0000+len(bootData)], bootData)
+	return nil
+}
+
 // LoadROM loads a ROM file into the CPU's memory
 func LoadROM(cpu *CPU, romFilePath string) error {
 	romData, err := os.ReadFile(romFilePath)
@@ -159,15 +168,12 @@ func LoadROM(cpu *CPU, romFilePath string) error {
 		return fmt.Errorf("error reading ROM file: %v", err)
 	}
 
-	// Make sure we don't overflow the ROM buffer
 	if len(romData) > len(cpu.ROM) {
 		return fmt.Errorf("ROM file too large: %d bytes (max %d)", len(romData), len(cpu.ROM))
 	}
 
-	// Copy ROM data to CPU's memory
 	copy(cpu.ROM, romData)
 
-	// Also copy to memory starting at address 0
 	copy(cpu.Memory, romData)
 
 	return nil
@@ -318,8 +324,8 @@ func RunProgram(cpu *CPU, maxCycles int) {
 			break
 		}
 
-		cpu.RenderGameBoy()
 		if cpu.Clock >= 456 {
+			cpu.RenderGameBoy()
 			rl.BeginDrawing()
 
 			// Draw the stretched texture
@@ -381,6 +387,9 @@ func main() {
 	log.Printf("Loading ROM file: %s", *romFile)
 	if err := LoadROM(cpu, *romFile); err != nil {
 		log.Fatalf("Failed to load ROM: %v", err)
+	}
+	if err := LoadBoot(cpu, "boot.gb"); err != nil {
+		log.Fatalf("Failed to load boot ROM: %v", err)
 	}
 
 	// Set debug level if needed
