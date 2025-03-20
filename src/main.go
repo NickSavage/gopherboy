@@ -305,7 +305,7 @@ func RunProgram(cpu *CPU, maxCycles int) {
 	start := time.Now()
 
 	for i := 0; i < maxCycles; i++ {
-		// cycleStart := time.Now()
+		cycleStart := time.Now()
 
 		cpu.HandleKeyboard()
 		cpu.HandleInterrupts()
@@ -333,7 +333,18 @@ func RunProgram(cpu *CPU, maxCycles int) {
 		// if cpu.Memory[0xFF44] == cpu.Memory[0xFF45] {
 		// 	cpu.RequestStatInterrupt()
 		// }
-		if cpu.Memory[0xFF44] == 154 {
+		elapsed := time.Since(start)
+		cycleTime := time.Since(cycleStart)
+		avgCycleTime := elapsed / time.Duration(i+1)
+		log.Printf("Executed %d instructions, PC: 0x%04X, clock: %d, Avg cycle: %v, Current cycle: %v",
+			i, cpu.PC, cpu.Clock, avgCycleTime, cycleTime)
+		err := cpu.CheckError()
+		if err != nil {
+			log.Printf("Test has failed")
+			break
+		}
+
+		if cpu.Clock >= 456 {
 			cpu.RenderGameBoy()
 
 			// Clear the renderer
@@ -348,19 +359,7 @@ func RunProgram(cpu *CPU, maxCycles int) {
 			cpu.Clock = cpu.Clock % 114
 			cpu.Memory[0xFF44] = 0
 		}
-		// elapsed := time.Since(start)
-		// cycleTime := time.Since(cycleStart)
-		// avgCycleTime := elapsed / time.Duration(i+1)
-		// log.Printf("Executed %d instructions, PC: 0x%04X, clock: %d, Avg cycle: %v, Current cycle: %v",
-		// 	i, cpu.PC, cpu.Clock, avgCycleTime, cycleTime)
-		err := cpu.CheckError()
-		if err != nil {
-			log.Printf("Test has failed")
-			break
-		}
-
-		if cpu.Clock >= 456 {
-		}
+		time.Sleep(100)
 
 	}
 
