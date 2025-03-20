@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
-	rl "github.com/gen2brain/raylib-go/raylib"
+	"github.com/veandco/go-sdl2/sdl"
 )
 
 type CPU struct {
@@ -26,7 +27,9 @@ type CPU struct {
 	Halted bool
 
 	Framebuffer [][]uint32
-	Texture     rl.Texture2D
+	Window      *sdl.Window
+	Renderer    *sdl.Renderer
+	Texture     *sdl.Texture
 }
 
 type Flags struct {
@@ -180,7 +183,16 @@ func LoadROM(cpu *CPU, romFilePath string) error {
 }
 
 func (cpu *CPU) Exit() {
-	rl.CloseWindow()
+	if cpu.Texture != nil {
+		cpu.Texture.Destroy()
+	}
+	if cpu.Renderer != nil {
+		cpu.Renderer.Destroy()
+	}
+	if cpu.Window != nil {
+		cpu.Window.Destroy()
+	}
+	sdl.Quit()
 
 	// Dump memory contents to file
 	if err := DumpMemoryToFile(cpu, "memory_dump.bin"); err != nil {
@@ -192,10 +204,18 @@ func (cpu *CPU) Exit() {
 }
 
 func (cpu *CPU) HandleKeyboard() {
-	keys := rl.GetKeyPressed()
-	if keys == rl.KeyEscape {
-		cpu.Exit()
-
+	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+		switch event.(type) {
+		case *sdl.QuitEvent:
+			cpu.Exit()
+		case *sdl.KeyboardEvent:
+			keyEvent := event.(*sdl.KeyboardEvent)
+			if keyEvent.Type == sdl.KEYDOWN {
+				if keyEvent.Keysym.Sym == sdl.K_ESCAPE {
+					cpu.Exit()
+				}
+			}
+		}
 	}
 }
 
@@ -251,40 +271,42 @@ func (cpu *CPU) HandleInterrupts() {
 
 // RunProgram executes the program loaded in the CPU's memory
 func RunProgram(cpu *CPU, maxCycles int) {
-
-	rl.InitWindow(160*4, 144*4, "Gopherboy")
-	rl.SetTargetFPS(60)
-	rl.SetExitKey(0)
-	rl.SetTraceLogLevel(rl.LogNone)
-
-	sourceRect := rl.Rectangle{
-		X:      0,
-		Y:      0,
-		Width:  float32(160),
-		Height: float32(144),
+	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
+		log.Fatalf("Failed to initialize SDL: %v", err)
 	}
 
-	// Destination rectangle (the full window)
-	destRect := rl.Rectangle{
-		X:      0,
-		Y:      0,
-		Width:  float32(160 * 4),
-		Height: float32(144 * 4),
+	window, err := sdl.CreateWindow("Gopherboy", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, 160*4, 144*4, sdl.WINDOW_SHOWN)
+	if err != nil {
+		log.Fatalf("Failed to create window: %v", err)
 	}
+	cpu.Window = window
 
-	// Origin (0,0) and rotation (0 degrees)
-	origin := rl.Vector2{X: 0, Y: 0}
-	rotation := float32(0)
+	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
+	if err != nil {
+		log.Fatalf("Failed to create renderer: %v", err)
+	}
+	cpu.Renderer = renderer
 
-	framebuffer := rl.GenImageColor(160, 144, rl.Black)
-	texture := rl.LoadTextureFromImage(framebuffer)
+	texture, err := renderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_STREAMING, 160, 144)
+	if err != nil {
+		log.Fatalf("Failed to create texture: %v", err)
+	}
 	cpu.Texture = texture
+
+	// Set up framebuffer
 	cpu.Framebuffer = make([][]uint32, 144)
 	for i := range cpu.Framebuffer {
 		cpu.Framebuffer[i] = make([]uint32, 160)
 	}
 
+	// Set the logical size to maintain aspect ratio
+	renderer.SetLogicalSize(160, 144)
+
+	start := time.Now()
+
 	for i := 0; i < maxCycles; i++ {
+		// cycleStart := time.Now()
+
 		cpu.HandleKeyboard()
 		cpu.HandleInterrupts()
 		if !cpu.Halted {
@@ -312,12 +334,25 @@ func RunProgram(cpu *CPU, maxCycles int) {
 		// 	cpu.RequestStatInterrupt()
 		// }
 		if cpu.Memory[0xFF44] == 154 {
+			cpu.RenderGameBoy()
+
+			// Clear the renderer
+			cpu.Renderer.Clear()
+
+			// Copy the texture to the renderer
+			cpu.Renderer.Copy(cpu.Texture, nil, nil)
+
+			// Present the renderer
+			cpu.Renderer.Present()
+
+			cpu.Clock = cpu.Clock % 114
 			cpu.Memory[0xFF44] = 0
 		}
-		// Optional: Add delay or debug output here
-		if i%1000 == 0 {
-			log.Printf("Executed %d instructions, PC: 0x%04X", i, cpu.PC)
-		}
+		// elapsed := time.Since(start)
+		// cycleTime := time.Since(cycleStart)
+		// avgCycleTime := elapsed / time.Duration(i+1)
+		// log.Printf("Executed %d instructions, PC: 0x%04X, clock: %d, Avg cycle: %v, Current cycle: %v",
+		// 	i, cpu.PC, cpu.Clock, avgCycleTime, cycleTime)
 		err := cpu.CheckError()
 		if err != nil {
 			log.Printf("Test has failed")
@@ -325,18 +360,14 @@ func RunProgram(cpu *CPU, maxCycles int) {
 		}
 
 		if cpu.Clock >= 456 {
-			cpu.RenderGameBoy()
-			rl.BeginDrawing()
-
-			// Draw the stretched texture
-			rl.DrawTexturePro(cpu.Texture, sourceRect, destRect, origin, rotation, rl.White)
-
-			rl.EndDrawing()
-			cpu.Clock = cpu.Clock % 114
 		}
+
 	}
 
+	totalTime := time.Since(start)
+	avgCycleTime := totalTime / time.Duration(maxCycles)
 	log.Printf("Program execution stopped. PC: 0x%04X, Halted: %v", cpu.PC, cpu.Halted)
+	log.Printf("Total execution time: %v, Average cycle time: %v", totalTime, avgCycleTime)
 
 	// Dump memory contents to file
 	if err := DumpMemoryToFile(cpu, "memory_dump.bin"); err != nil {
@@ -345,8 +376,16 @@ func RunProgram(cpu *CPU, maxCycles int) {
 		log.Printf("Memory dumped to memory_dump.hex")
 	}
 
-	rl.UnloadTexture(texture)
-	rl.CloseWindow()
+	if cpu.Texture != nil {
+		cpu.Texture.Destroy()
+	}
+	if cpu.Renderer != nil {
+		cpu.Renderer.Destroy()
+	}
+	if cpu.Window != nil {
+		cpu.Window.Destroy()
+	}
+	sdl.Quit()
 }
 
 // DumpMemoryToFile writes the CPU memory contents to a binary file
@@ -370,7 +409,7 @@ func DumpMemoryToFile(cpu *CPU, filename string) error {
 func main() {
 	// Parse command-line flags
 	romFile := flag.String("rom", "", "Path to Game Boy ROM file")
-	maxCycles := flag.Int("cycles", 500000, "Maximum number of CPU cycles to execute")
+	maxCycles := flag.Int("cycles", 5000000, "Maximum number of CPU cycles to execute")
 	debug := flag.Bool("debug", false, "Enable debug output")
 
 	flag.Parse()

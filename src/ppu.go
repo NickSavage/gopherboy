@@ -1,7 +1,7 @@
 package main
 
 import (
-	rl "github.com/gen2brain/raylib-go/raylib"
+	"unsafe"
 )
 
 func bgTileMapMode(cpu *CPU) uint8 {
@@ -76,7 +76,7 @@ func interleaveTilePixel(low, high, index uint8) uint16 {
 	return result
 }
 
-func buildFb(cpu *CPU, ly uint8, imageData []rl.Color) {
+func buildFb(cpu *CPU, ly uint8, pixels []byte) {
 	bgTileMapModeAddr := bgTileMapMode(cpu)
 
 	var tileIndexAddr uint16
@@ -119,23 +119,25 @@ func buildFb(cpu *CPU, ly uint8, imageData []rl.Color) {
 
 		pixel = interleaveTilePixel(cpu.Memory[addr], cpu.Memory[addr+1], 7-tilePixelX)
 		colourPixel = colourizePixel(int(pixel))
-		imageData[int(ly)*160+int(x)] = rl.Color{
-			R: uint8((colourPixel >> 16) & 0xFF),
-			G: uint8((colourPixel >> 8) & 0xFF),
-			B: uint8(colourPixel & 0xFF),
-			A: uint8((colourPixel >> 24) & 0xFF),
-		}
+		// Calculate the position in the pixel array (4 bytes per pixel for RGBA)
+		pos := (int(ly)*160 + int(x)) * 4
+		// Set RGBA values (SDL uses RGBA format)
+		pixels[pos] = uint8((colourPixel >> 16) & 0xFF)   // R
+		pixels[pos+1] = uint8((colourPixel >> 8) & 0xFF)  // G
+		pixels[pos+2] = uint8(colourPixel & 0xFF)         // B
+		pixels[pos+3] = uint8((colourPixel >> 24) & 0xFF) // A
 	}
 }
 
 func (cpu *CPU) RenderGameBoy() {
-	// Approach 1: Create image data directly from framebuffer
-	var imageData []rl.Color = make([]rl.Color, 160*144)
+	// Create a byte array for pixel data (RGBA format, 4 bytes per pixel)
+	pixels := make([]byte, 160*144*4)
 
 	for ly := uint8(0); ly < 144; ly++ {
-		buildFb(cpu, ly, imageData)
+		buildFb(cpu, ly, pixels)
 	}
 
-	// Update the texture directly with the new color data
-	rl.UpdateTexture(cpu.Texture, imageData)
+	// Update the texture with the new pixel data
+	pitch := 160 * 4 // 4 bytes per pixel (RGBA)
+	cpu.Texture.Update(nil, unsafe.Pointer(&pixels[0]), pitch)
 }

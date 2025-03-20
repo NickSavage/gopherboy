@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -1084,11 +1083,11 @@ func (cpu *CPU) ParseNextCBOpcode() {
 
 func (cpu *CPU) ParseNextOpcode() {
 	next := cpu.ReadMemory(cpu.PC)
-	fmt.Printf("Opcode: 0x%02X 0x%02X 0x%02X PC: 0x%04X SP: 0x%04X A: 0x%02X B: 0x%02X C: 0x%02X D: 0x%02X E: 0x%02X H: 0x%02X L: 0x%02X Flags: Z:%t N:%t H:%t C:%t\n",
-		next, cpu.Memory[cpu.PC+1], cpu.Memory[cpu.PC+2], cpu.PC, cpu.SP,
-		cpu.Registers[RegA], cpu.Registers[RegB], cpu.Registers[RegC],
-		cpu.Registers[RegD], cpu.Registers[RegE], cpu.Registers[RegH], cpu.Registers[RegL],
-		cpu.Flags.Z(), cpu.Flags.N(), cpu.Flags.H(), cpu.Flags.C())
+	// fmt.Printf("Opcode: 0x%02X 0x%02X 0x%02X PC: 0x%04X SP: 0x%04X A: 0x%02X B: 0x%02X C: 0x%02X D: 0x%02X E: 0x%02X H: 0x%02X L: 0x%02X Flags: Z:%t N:%t H:%t C:%t\n",
+	// 	next, cpu.Memory[cpu.PC+1], cpu.Memory[cpu.PC+2], cpu.PC, cpu.SP,
+	// 	cpu.Registers[RegA], cpu.Registers[RegB], cpu.Registers[RegC],
+	// 	cpu.Registers[RegD], cpu.Registers[RegE], cpu.Registers[RegH], cpu.Registers[RegL],
+	// 	cpu.Flags.Z(), cpu.Flags.N(), cpu.Flags.H(), cpu.Flags.C())
 
 	switch next {
 	case 0x00: // NOP
